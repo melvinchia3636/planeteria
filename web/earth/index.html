@@ -1,0 +1,311 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Earth Contour Globe</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:ital,wght@0,400;0,600;1,400&display=swap" rel="stylesheet">
+<style>
+  html, body { margin: 0; height: 100%; overflow: hidden; background: #05070f; }
+  canvas { display: block; }
+  #glcanvas { position: fixed; inset: 0; z-index: 0; }
+  #overlay { position: fixed; inset: 0; z-index: 1; cursor: grab; }
+  #overlay:active { cursor: grabbing; }
+  #hud { position: fixed; left: 14px; bottom: 12px; color: #6f86a8; z-index: 2;
+         font: 12px/1.6 'JetBrains Mono', ui-monospace, Menlo, monospace; pointer-events: none; }
+  #hud b { color: #9fd0ff; font-weight: 600; }
+  #controls { position: fixed; right: 14px; bottom: 12px; color: #6f86a8; z-index: 2;
+              font: 12px 'JetBrains Mono', ui-monospace, Menlo, monospace; user-select: none;
+              display: flex; gap: 16px; }
+  #controls label { cursor: pointer; }
+  #loading { position: fixed; inset: 0; display: grid; place-items: center; z-index: 3;
+             color: #9fd0ff; font: 14px ui-monospace, monospace; }
+</style>
+</head>
+<body>
+<div id="loading">loading earth contours…</div>
+<div id="hud">drag to rotate &nbsp;·&nbsp; scroll to zoom<br><b>ETOPO 2022</b> · 1000 m contours</div>
+<div id="controls">
+  <label><input type="checkbox" id="surfacebox" checked> surface</label>
+  <label><input type="checkbox" id="contourbox" checked> contours</label>
+  <label><input type="checkbox" id="labelbox" checked> labels</label>
+  <label><input type="checkbox" id="spinbox"> auto-spin</label>
+</div>
+<canvas id="glcanvas"></canvas>
+<canvas id="overlay"></canvas>
+<script src="../d3.min.js"></script>
+<script src="earth_contours.js"></script>
+<script src="earth_labels.js"></script>
+<script src="earth_texture.js"></script>
+<script>
+(function () {
+  const dpr = Math.min(window.devicePixelRatio || 1, 2);
+  let width = window.innerWidth, height = window.innerHeight;
+
+  const glCanvas = document.getElementById("glcanvas");
+  const canvas = document.getElementById("overlay");
+  const ctx = canvas.getContext("2d");
+
+  function sizeCanvas(c) {
+    c.style.width = width + "px"; c.style.height = height + "px";
+    c.width = width * dpr; c.height = height * dpr;
+  }
+  sizeCanvas(glCanvas); sizeCanvas(canvas);
+
+  const projection = d3.geoOrthographic()
+      .translate([width / 2, height / 2])
+      .rotate([-10, -20, 0])
+      .scale(Math.min(width, height) / 2 - 24)
+      .clipAngle(90);
+  const path = d3.geoPath(projection, ctx);
+  const graticule = d3.geoGraticule10();
+  const sphere = { type: "Sphere" };
+
+  function gradient() {
+    const g = ctx.createRadialGradient(
+        width * 0.38, height * 0.34, 0,
+        width * 0.5, height * 0.5, Math.min(width, height) * 0.62);
+    g.addColorStop(0, "#12203a");
+    g.addColorStop(0.7, "#0a1020");
+    g.addColorStop(1, "#060a14");
+    return g;
+  }
+
+  /* ---- WebGL textured sphere (equirectangular true-colour surface) ---- */
+  let surfaceOn = true, texReady = false;
+  const gl = glCanvas.getContext("webgl", { alpha: true, premultipliedAlpha: false });
+  let prog = null, U = null, tex = null;
+
+  if (gl) {
+    const vsrc = "attribute vec2 p; void main(){ gl_Position = vec4(p, 0.0, 1.0); }";
+    const fsrc = [
+      "precision highp float;",
+      "uniform sampler2D u_tex;",
+      "uniform vec2 u_center;",
+      "uniform float u_radius, u_lon0, u_lat0;",
+      "const float PI = 3.141592653589793;",
+      "void main(){",
+      "  vec2 p = gl_FragCoord.xy - u_center;",
+      "  vec2 q = p / u_radius;",
+      "  float rho = length(q);",
+      "  if (rho > 1.0) discard;",
+      "  float c = asin(clamp(rho, 0.0, 1.0));",
+      "  float sinc = sin(c), cosc = cos(c);",
+      "  float slat = sin(u_lat0), clat = cos(u_lat0);",
+      "  float lat, lon;",
+      "  if (rho < 1e-6) { lat = u_lat0; lon = u_lon0; }",
+      "  else {",
+      "    lat = asin(clamp(cosc*slat + (q.y*sinc*clat)/rho, -1.0, 1.0));",
+      "    lon = u_lon0 + atan(q.x*sinc, rho*clat*cosc - q.y*slat*sinc);",
+      "  }",
+      "  float u = fract(lon / (2.0*PI) + 0.5);",
+      "  float v = 0.5 - lat / PI;",
+      "  vec4 col = texture2D(u_tex, vec2(u, v));",
+      "  float a = 1.0 - smoothstep(0.995, 1.0, rho);",
+      "  gl_FragColor = vec4(col.rgb, col.a * a);",
+      "}"
+    ].join("\n");
+
+    function sh(type, src) {
+      const s = gl.createShader(type);
+      gl.shaderSource(s, src); gl.compileShader(s);
+      if (!gl.getShaderParameter(s, gl.COMPILE_STATUS))
+        throw new Error(gl.getShaderInfoLog(s));
+      return s;
+    }
+    prog = gl.createProgram();
+    gl.attachShader(prog, sh(gl.VERTEX_SHADER, vsrc));
+    gl.attachShader(prog, sh(gl.FRAGMENT_SHADER, fsrc));
+    gl.linkProgram(prog);
+    if (!gl.getProgramParameter(prog, gl.LINK_STATUS))
+      throw new Error(gl.getProgramInfoLog(prog));
+    gl.useProgram(prog);
+
+    const buf = gl.createBuffer();
+    gl.bindBuffer(gl.ARRAY_BUFFER, buf);
+    gl.bufferData(gl.ARRAY_BUFFER,
+        new Float32Array([-1,-1, 1,-1, -1,1, -1,1, 1,-1, 1,1]), gl.STATIC_DRAW);
+    const loc = gl.getAttribLocation(prog, "p");
+    gl.enableVertexAttribArray(loc);
+    gl.vertexAttribPointer(loc, 2, gl.FLOAT, false, 0, 0);
+
+    U = {
+      center: gl.getUniformLocation(prog, "u_center"),
+      radius: gl.getUniformLocation(prog, "u_radius"),
+      lon0: gl.getUniformLocation(prog, "u_lon0"),
+      lat0: gl.getUniformLocation(prog, "u_lat0"),
+      tex: gl.getUniformLocation(prog, "u_tex")
+    };
+
+    tex = gl.createTexture();
+    gl.bindTexture(gl.TEXTURE_2D, tex);
+    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, 1, 1, 0, gl.RGBA,
+        gl.UNSIGNED_BYTE, new Uint8Array([0, 0, 0, 255]));
+    gl.enable(gl.BLEND);
+    gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
+
+    if (window.EARTH_TEXTURE) {
+      const img = new Image();
+      img.onload = function () {
+        gl.bindTexture(gl.TEXTURE_2D, tex);
+        gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, img);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.REPEAT);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+        texReady = true;
+        request();
+      };
+      img.src = window.EARTH_TEXTURE;
+    }
+  }
+
+  function drawGL(textured) {
+    if (!gl) return;
+    gl.viewport(0, 0, glCanvas.width, glCanvas.height);
+    gl.clearColor(0, 0, 0, 0);
+    gl.clear(gl.COLOR_BUFFER_BIT);
+    if (!textured) return;
+    gl.useProgram(prog);
+    const r = projection.rotate();
+    gl.uniform2f(U.center, width * dpr / 2, height * dpr / 2);
+    gl.uniform1f(U.radius, projection.scale() * dpr);
+    gl.uniform1f(U.lon0, -r[0] * Math.PI / 180);
+    gl.uniform1f(U.lat0, -r[1] * Math.PI / 180);
+    gl.activeTexture(gl.TEXTURE0);
+    gl.bindTexture(gl.TEXTURE_2D, tex);
+    gl.uniform1i(U.tex, 0);
+    gl.drawArrays(gl.TRIANGLES, 0, 6);
+  }
+
+  function render(geo) {
+    const textured = surfaceOn && texReady;
+    drawGL(textured);
+
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    ctx.clearRect(0, 0, width, height);
+
+    if (!textured) {
+      ctx.beginPath(); path(sphere);
+      ctx.fillStyle = gradient(); ctx.fill();
+      ctx.lineWidth = 0.8; ctx.strokeStyle = "#2a3d5c"; ctx.stroke();
+    }
+
+    ctx.beginPath(); path(graticule);
+    ctx.lineWidth = 0.5; ctx.strokeStyle = textured ? "#2a4364" : "#16233a";
+    ctx.stroke();
+
+    if (showContours) {
+      ctx.beginPath(); path(geo);
+      ctx.lineWidth = textured ? 0.7 : 0.5;
+      ctx.strokeStyle = textured ? "rgba(255,255,255,0.35)" : "#5fb0ff";
+      ctx.stroke();
+    }
+
+    ctx.beginPath(); path(sphere);
+    ctx.lineWidth = 1.2; ctx.strokeStyle = "#4a7fb5"; ctx.stroke();
+
+    drawLabels();
+  }
+
+  const LABELS = window.EARTH_LABELS || [];
+  let showLabels = true, showContours = true;
+
+  function drawLabels() {
+    if (!showLabels || !LABELS.length) return;
+    const r = projection.rotate();
+    const center = [-r[0], -r[1]];
+    ctx.textBaseline = "middle";
+    ctx.textAlign = "left";
+    ctx.lineJoin = "round";
+    for (let i = 0; i < LABELS.length; i++) {
+      const L = LABELS[i];
+      if (d3.geoDistance([L.lon, L.lat], center) > 1.42) continue;
+      const p = projection([L.lon, L.lat]);
+      if (!p) continue;
+      const cap = L.t === "capital";
+      ctx.font = cap
+          ? "bold 13px Georgia, 'Times New Roman', serif"
+          : "11px Helvetica, Arial, sans-serif";
+      const fx = p[0] + (cap ? 9 : 5), fy = p[1];
+      ctx.lineWidth = 3;
+      ctx.strokeStyle = "rgba(4,7,14,0.9)";
+      ctx.strokeText(L.n, fx, fy);
+      ctx.fillStyle = cap ? "#ffe08a" : "#eef4ff";
+      ctx.fillText(L.n, fx, fy);
+      ctx.beginPath();
+      ctx.arc(p[0], p[1], cap ? 3 : 2, 0, 6.2832);
+      ctx.fillStyle = cap ? "#ffcf5c" : "#eef4ff";
+      ctx.fill();
+    }
+  }
+
+  const DATA = window.EARTH_CONTOURS;
+  let raf = null;
+  function request() {
+    if (raf === null) raf = requestAnimationFrame(() => { raf = null; render(DATA); });
+  }
+
+  render(DATA);
+
+  document.getElementById("surfacebox").addEventListener("change", (e) => {
+    surfaceOn = e.target.checked;
+    request();
+  });
+  document.getElementById("contourbox").addEventListener("change", (e) => {
+    showContours = e.target.checked;
+    request();
+  });
+  document.getElementById("labelbox").addEventListener("change", (e) => {
+    showLabels = e.target.checked;
+    request();
+  });
+
+  const spin = document.getElementById("spinbox");
+  let spinning = false, timer = null;
+  function tick() {
+    const r = projection.rotate();
+    projection.rotate([r[0] + 0.12, r[1], r[2]]);
+    request();
+  }
+  spin.addEventListener("change", () => {
+    spinning = spin.checked;
+    if (spinning) timer = d3.timer(tick);
+    else if (timer) { timer.stop(); timer = null; }
+  });
+
+  const drag = d3.drag()
+      .on("start", () => { if (timer) { timer.stop(); timer = null; } })
+      .on("drag", (e) => {
+        const k = 0.25;
+        const r = projection.rotate();
+        projection.rotate([r[0] + e.dx * k, r[1] - e.dy * k, 0]);
+        request();
+      })
+      .on("end", () => { if (spinning) timer = d3.timer(tick); });
+  d3.select(canvas).call(drag);
+
+  canvas.addEventListener("wheel", (e) => {
+    e.preventDefault();
+    const s = Math.max(80, Math.min(
+        projection.scale() * (e.deltaY < 0 ? 1.12 : 0.89),
+        Math.min(width, height) * 4));
+    projection.scale(s);
+    request();
+  }, { passive: false });
+
+  window.addEventListener("resize", () => {
+    width = window.innerWidth; height = window.innerHeight;
+    sizeCanvas(glCanvas); sizeCanvas(canvas);
+    projection.translate([width / 2, height / 2])
+               .scale(Math.min(width, height) / 2 - 24);
+    request();
+  });
+
+  document.getElementById("loading").style.display = "none";
+})();
+</script>
+</body>
+</html>

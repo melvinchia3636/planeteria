@@ -1,0 +1,12 @@
+[project]
+name = "moon-is-fun"
+version = "0.1.0"
+description = "Contour maps and an interactive d3 globe from the LOLA LDEM_128 lunar elevation model"
+requires-python = ">=3.10"
+dependencies = [
+    "numpy",
+    "scipy",
+    "scikit-image",
+    "pyshp",
+    "rasterio",
+]

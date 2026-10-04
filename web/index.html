@@ -1,0 +1,738 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Moon &amp; Earth — Contour Globes</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:ital,wght@0,400;0,600;1,400&display=swap" rel="stylesheet">
+<style>
+  :root { color-scheme: dark; }
+  html, body { margin: 0; height: 100%; background: #04060c; overflow: hidden; }
+  body { display: flex; flex-direction: column; }
+  #tabs { display: flex; flex: 0 0 auto; background: #070b13;
+          border-bottom: 1px solid rgba(255,255,255,0.07); }
+  #tabs button { appearance: none; background: none; border: none; cursor: pointer;
+                 padding: 13px 26px; font: 600 13px 'JetBrains Mono', ui-monospace, Menlo, monospace;
+                 letter-spacing: .12em; color: #55627a; border-bottom: 2px solid transparent; }
+  #tabs button:hover { color: #8a99b3; }
+  #tabs button.active[data-tab="moon"]  { color: #d7dfea; border-color: #c9d3e0; }
+  #tabs button.active[data-tab="earth"] { color: #8cc4ff; border-color: #4a9bff; }
+  #tabs button.active[data-tab="mars"]  { color: #ffb884; border-color: #e0732c; }
+  #main { position: relative; flex: 1 1 auto; min-height: 0; display: flex; }
+  #app { position: relative; flex: 1 1 auto; min-width: 0; }
+  #sidebar { flex: 0 0 224px; box-sizing: border-box; padding: 16px 18px;
+             background: #070b13; border-left: 1px solid rgba(255,255,255,0.07);
+             overflow-y: auto; }
+  #sidebar[data-theme="moon"]  { --accent: #c9d3e0; --dim: #8f9bb3; }
+  #sidebar[data-theme="earth"] { --accent: #6fb4ff; --dim: #4a7fb5; }
+  #sidebar[data-theme="mars"]  { --accent: #e8a878; --dim: #b5764a; }
+  #sidebar h2 { margin: 0 0 16px; font: 600 12px 'JetBrains Mono', ui-monospace, Menlo, monospace;
+                letter-spacing: .18em; color: var(--accent, #9fd0ff); }
+  .panel { position: absolute; inset: 0; display: none; overflow: hidden; }
+  .panel.active { display: block; }
+  .moon  { --accent: #c9d3e0; --dim: #8f9bb3; }
+  .earth { --accent: #6fb4ff; --dim: #4a7fb5; }
+  .mars  { --accent: #e8a878; --dim: #b5764a; }
+  .panel h1 { position: absolute; top: 16px; left: 18px; margin: 0; z-index: 2;
+              font: 600 15px/1.4 'JetBrains Mono', ui-monospace, Menlo, monospace;
+              letter-spacing: .06em; color: var(--accent); pointer-events: none; }
+  .panel h1 small { display: block; font-weight: 400; font-size: 11px;
+                    letter-spacing: .02em; color: var(--dim); }
+  canvas { display: block; }
+  .gl { position: absolute; inset: 0; z-index: 0; }
+  .ov { position: absolute; inset: 0; z-index: 1; cursor: grab; }
+  .ov:active { cursor: grabbing; }
+  .controls { position: static; display: flex; flex-direction: column; gap: 12px;
+              color: var(--dim, #8f9bb3);
+              font: 12px 'JetBrains Mono', ui-monospace, Menlo, monospace; user-select: none; }
+  .controls label { cursor: pointer; display: flex; align-items: center;
+                    justify-content: space-between; gap: 10px; }
+  .controls select { background: #0d1524; color: var(--accent, #cdd6e4);
+                     border: 1px solid #24344d; border-radius: 4px; padding: 2px 4px;
+                     font: inherit; }
+  .controls input[type=range] { width: 100px; accent-color: var(--accent, #6fb4ff); }
+  .hint { position: absolute; left: 18px; bottom: 12px; z-index: 2;
+          color: var(--dim); font: 12px/1.5 'JetBrains Mono', ui-monospace, Menlo, monospace;
+          pointer-events: none; }
+</style>
+</head>
+<body>
+<div id="tabs">
+  <button data-tab="moon" class="active">MOON</button>
+  <button data-tab="earth">EARTH</button>
+  <button data-tab="mars">MARS</button>
+</div>
+<div id="main">
+<div id="app">
+  <section class="panel moon active" id="moon">
+    <h1>MOON <small>LOLA LDEM_128 · 500 m contours</small></h1>
+    <canvas class="gl"></canvas><canvas class="ov"></canvas>
+    <div class="hint">drag to rotate · scroll to zoom</div>
+    <div class="controls">
+      <label>surface <select class="surfacemode">
+        <option value="off" selected>off</option>
+        <option value="photo">photo</option>
+        <option value="elev">elevation</option>
+      </select></label>
+      <label>3D <input type="checkbox" class="terrainbox"></label>
+      <label>relief <input type="range" class="vexag" min="0" max="4" step="0.25" value="1"></label>
+      <label>contours <input type="checkbox" class="contourbox" checked></label>
+      <label>labels <input type="checkbox" class="labelbox" checked></label>
+      <label>auto-spin <input type="checkbox" class="spinbox"></label>
+    </div>
+  </section>
+  <section class="panel earth" id="earth">
+    <h1>EARTH <small>ETOPO 2022 · 1000 m contours</small></h1>
+    <canvas class="gl"></canvas><canvas class="ov"></canvas>
+    <div class="hint">drag to rotate · scroll to zoom</div>
+    <div class="controls">
+      <label>surface <select class="surfacemode">
+        <option value="off" selected>off</option>
+        <option value="photo">photo</option>
+        <option value="elev">elevation</option>
+      </select></label>
+      <label>3D <input type="checkbox" class="terrainbox"></label>
+      <label>relief <input type="range" class="vexag" min="0" max="4" step="0.25" value="1"></label>
+      <label>contours <input type="checkbox" class="contourbox" checked></label>
+      <label>labels <input type="checkbox" class="labelbox" checked></label>
+      <label>auto-spin <input type="checkbox" class="spinbox"></label>
+    </div>
+  </section>
+  <section class="panel mars" id="mars">
+    <h1>MARS <small>MOLA · 1000 m contours</small></h1>
+    <canvas class="gl"></canvas><canvas class="ov"></canvas>
+    <div class="hint">drag to rotate · scroll to zoom</div>
+    <div class="controls">
+      <label>surface <select class="surfacemode">
+        <option value="off" selected>off</option>
+        <option value="photo">photo</option>
+        <option value="elev">elevation</option>
+      </select></label>
+      <label>3D <input type="checkbox" class="terrainbox"></label>
+      <label>relief <input type="range" class="vexag" min="0" max="4" step="0.25" value="1"></label>
+      <label>contours <input type="checkbox" class="contourbox" checked></label>
+      <label>labels <input type="checkbox" class="labelbox" checked></label>
+      <label>auto-spin <input type="checkbox" class="spinbox"></label>
+    </div>
+  </section>
+</div>
+  <aside id="sidebar" data-theme="moon">
+    <h2 id="sidebar-title">MOON · ADJUST</h2>
+    <div id="sidebar-controls"></div>
+  </aside>
+</div>
+
+<script src="d3.min.js"></script>
+<script src="moon/lunar_contours.js"></script>
+<script src="moon/lunar_labels.js"></script>
+<script src="moon/lunar_truecolor.js"></script>
+<script src="moon/lunar_elev.js"></script>
+<script src="moon/lunar_height.js"></script>
+<script src="earth/earth_contours.js"></script>
+<script src="earth/earth_labels.js"></script>
+<script src="earth/earth_texture.js"></script>
+<script src="earth/earth_elev.js"></script>
+<script src="earth/earth_height.js"></script>
+<script src="mars/mars_contours.js"></script>
+<script src="mars/mars_labels.js"></script>
+<script src="mars/mars_texture.js"></script>
+<script src="mars/mars_elev.js"></script>
+<script src="mars/mars_height.js"></script>
+<script>
+(function () {
+  "use strict";
+  const dpr = Math.min(window.devicePixelRatio || 1, 2);
+
+  const VSRC = "attribute vec2 p; void main(){ gl_Position = vec4(p, 0.0, 1.0); }";
+  const FSRC = [
+    "precision highp float;",
+    "uniform sampler2D u_tex;",
+    "uniform vec2 u_center;",
+    "uniform float u_radius, u_lon0, u_lat0, u_os;",
+    "const float PI = 3.141592653589793;",
+    "void main(){",
+    "  vec2 p = gl_FragCoord.xy - u_center;",
+    "  vec2 q = p / u_radius;",
+    "  float rho = length(q);",
+    "  if (rho > 1.0) discard;",
+    "  float c = asin(clamp(rho, 0.0, 1.0));",
+    "  float sinc = sin(c), cosc = cos(c);",
+    "  float slat = sin(u_lat0), clat = cos(u_lat0);",
+    "  float lat, lon;",
+    "  if (rho < 1e-6) { lat = u_lat0; lon = u_lon0; }",
+    "  else {",
+    "    lat = asin(clamp(cosc*slat + (q.y*sinc*clat)/rho, -1.0, 1.0));",
+    "    lon = u_lon0 + atan(q.x*sinc, rho*clat*cosc - q.y*slat*sinc);",
+    "  }",
+    "  float u = fract(lon / (2.0*PI) + u_os);",
+    "  float v = 0.5 - lat / PI;",
+    "  vec4 col = texture2D(u_tex, vec2(u, v));",
+    "  float a = 1.0 - smoothstep(0.995, 1.0, rho);",
+    "  gl_FragColor = vec4(col.rgb, col.a * a);",
+    "}"
+  ].join("\n");
+
+  function makeGL(canvas) {
+    const gl = canvas.getContext("webgl", { alpha: true, premultipliedAlpha: false });
+    if (!gl) return null;
+    function sh(type, src) {
+      const s = gl.createShader(type);
+      gl.shaderSource(s, src); gl.compileShader(s);
+      if (!gl.getShaderParameter(s, gl.COMPILE_STATUS))
+        throw new Error(gl.getShaderInfoLog(s));
+      return s;
+    }
+    const prog = gl.createProgram();
+    gl.attachShader(prog, sh(gl.VERTEX_SHADER, VSRC));
+    gl.attachShader(prog, sh(gl.FRAGMENT_SHADER, FSRC));
+    gl.linkProgram(prog);
+    if (!gl.getProgramParameter(prog, gl.LINK_STATUS))
+      throw new Error(gl.getProgramInfoLog(prog));
+    gl.useProgram(prog);
+
+    const buf = gl.createBuffer();
+    gl.bindBuffer(gl.ARRAY_BUFFER, buf);
+    gl.bufferData(gl.ARRAY_BUFFER,
+        new Float32Array([-1,-1, 1,-1, -1,1, -1,1, 1,-1, 1,1]), gl.STATIC_DRAW);
+    const loc = gl.getAttribLocation(prog, "p");
+    gl.enableVertexAttribArray(loc);
+    gl.vertexAttribPointer(loc, 2, gl.FLOAT, false, 0, 0);
+
+    const U = {};
+    ["u_center","u_radius","u_lon0","u_lat0","u_os","u_tex"].forEach(function (n) {
+      U[n] = gl.getUniformLocation(prog, n);
+    });
+
+    gl.enable(gl.BLEND);
+    gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
+
+    function makeTexture() {
+      const t = gl.createTexture();
+      gl.bindTexture(gl.TEXTURE_2D, t);
+      gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, 1, 1, 0, gl.RGBA,
+          gl.UNSIGNED_BYTE, new Uint8Array([0, 0, 0, 255]));
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.REPEAT);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+      return t;
+    }
+    return { gl: gl, prog: prog, U: U, makeTexture: makeTexture };
+  }
+
+  function makeReliefGL(gl) {
+    const VS = [
+      "attribute vec2 a_ll;",     // lon, lat (radians)
+      "attribute vec2 a_uv;",
+      "attribute vec3 a_h;",      // height here, +col, +row (0..1)
+      "uniform mat3 u_rot;",
+      "uniform vec2 u_scale;",
+      "uniform vec2 u_step;",     // dlon, dlat (radians)
+      "uniform float u_exag;",
+      "varying vec3 v_nrm;",
+      "varying vec2 v_uv;",
+      "vec3 dirv(vec2 a){ float cl = cos(a.y); return vec3(cl*cos(a.x), cl*sin(a.x), sin(a.y)); }",
+      "void main(){",
+      "  vec3 d0 = dirv(a_ll);",
+      "  vec3 du = dirv(a_ll + vec2(u_step.x, 0.0));",
+      "  vec3 dv = dirv(a_ll + vec2(0.0, u_step.y));",
+      "  vec3 p0 = d0 * (1.0 + u_exag*a_h.x);",
+      "  vec3 pu = du * (1.0 + u_exag*a_h.y);",
+      "  vec3 pv = dv * (1.0 + u_exag*a_h.z);",
+      "  vec3 n = normalize(cross(pu - p0, pv - p0));",
+      "  if (dot(n, d0) < 0.0) n = -n;",
+      "  vec3 p = u_rot * p0;",
+      "  v_nrm = u_rot * n;",
+      "  v_uv = a_uv;",
+      "  gl_Position = vec4(p.x*u_scale.x, p.y*u_scale.y, -p.z*0.5, 1.0);",
+      "}"
+    ].join("\n");
+    const FS = [
+      "precision highp float;",
+      "varying vec3 v_nrm;",
+      "varying vec2 v_uv;",
+      "uniform sampler2D u_tex;",
+      "uniform vec3 u_light;",
+      "uniform vec3 u_base;",
+      "uniform float u_useTex;",
+      "void main(){",
+      "  vec3 n = normalize(v_nrm);",
+      "  float d = max(dot(n, u_light), 0.0);",
+      "  vec3 base = mix(u_base, texture2D(u_tex, v_uv).rgb, u_useTex);",
+      "  gl_FragColor = vec4(base * (0.30 + 0.70*d), 1.0);",
+      "}"
+    ].join("\n");
+    function sh(type, src) {
+      const s = gl.createShader(type);
+      gl.shaderSource(s, src); gl.compileShader(s);
+      if (!gl.getShaderParameter(s, gl.COMPILE_STATUS))
+        throw new Error(gl.getShaderInfoLog(s));
+      return s;
+    }
+    const prog = gl.createProgram();
+    gl.attachShader(prog, sh(gl.VERTEX_SHADER, VS));
+    gl.attachShader(prog, sh(gl.FRAGMENT_SHADER, FS));
+    gl.linkProgram(prog);
+    if (!gl.getProgramParameter(prog, gl.LINK_STATUS))
+      throw new Error(gl.getProgramInfoLog(prog));
+    return {
+      prog: prog,
+      a_ll: gl.getAttribLocation(prog, "a_ll"),
+      a_uv: gl.getAttribLocation(prog, "a_uv"),
+      a_h: gl.getAttribLocation(prog, "a_h"),
+      u_rot: gl.getUniformLocation(prog, "u_rot"),
+      u_scale: gl.getUniformLocation(prog, "u_scale"),
+      u_step: gl.getUniformLocation(prog, "u_step"),
+      u_exag: gl.getUniformLocation(prog, "u_exag"),
+      u_tex: gl.getUniformLocation(prog, "u_tex"),
+      u_light: gl.getUniformLocation(prog, "u_light"),
+      u_base: gl.getUniformLocation(prog, "u_base"),
+      u_useTex: gl.getUniformLocation(prog, "u_useTex")
+    };
+  }
+
+  function createGlobe(cfg) {
+    const root = cfg.root;
+    const glCanvas = root.querySelector(".gl");
+    const canvas = root.querySelector(".ov");
+    const ctx = canvas.getContext("2d");
+    let W = 0, H = 0;
+
+    const surfaceModeSel = root.querySelector(".surfacemode");
+    const terrainBox = root.querySelector(".terrainbox");
+    const vexag = root.querySelector(".vexag");
+    const contourBox = root.querySelector(".contourbox");
+    const labelBox = root.querySelector(".labelbox");
+    const spinBox = root.querySelector(".spinbox");
+
+    const projection = d3.geoOrthographic().rotate(cfg.rotate).clipAngle(90);
+    const path = d3.geoPath(projection, ctx);
+    const graticule = d3.geoGraticule10();
+    const sphere = { type: "Sphere" };
+
+    const glapi = makeGL(glCanvas);
+    const textures = { photo: null, elev: null };
+    const ready = { photo: false, elev: false };
+    let surfaceMode = surfaceModeSel ? surfaceModeSel.value : "elev";
+    let terrainOn = false;
+    let vexagMult = vexag ? parseFloat(vexag.value) : 1;
+    let showContours = true, showLabels = true;
+
+    function loadTexture(src, key) {
+      if (!glapi || !src) return;
+      textures[key] = glapi.makeTexture();
+      const img = new Image();
+      img.onload = function () {
+        const gl = glapi.gl;
+        gl.bindTexture(gl.TEXTURE_2D, textures[key]);
+        gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, img);
+        ready[key] = true;
+        request();
+      };
+      img.src = src;
+    }
+    loadTexture(cfg.texture, "photo");
+    loadTexture(cfg.elevTexture, "elev");
+
+    function activeTexture() {
+      if (!glapi || surfaceMode === "off") return null;
+      if (surfaceMode === "elev" && ready.elev) return textures.elev;
+      if (surfaceMode === "photo" && ready.photo) return textures.photo;
+      if (ready.elev) return textures.elev;      // fall back to whatever loaded
+      if (ready.photo) return textures.photo;
+      return null;
+    }
+
+    /* ---- displaced 3D terrain mesh from the heightmap ---- */
+    let reliefGL = null, relief = null;
+
+    function buildRelief() {
+      if (relief || !glapi || !cfg.height) return;
+      const gl = glapi.gl;
+      if (!gl.getExtension("OES_element_index_uint")) return;
+
+      const HD = cfg.height;
+      const bin = atob(HD.b64);
+      const bytes = new Uint8Array(bin.length);
+      for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+      const hgt = new Int16Array(bytes.buffer);
+
+      const W = HD.w, H = HD.h, cols = W + 1, rows = H + 1;
+      const vmin = HD.min, range = (HD.max - HD.min) || 1;
+      const reliefBase = cfg.relief || 0.05;
+      const lon0 = cfg.lon0 || 0;   // DEM longitude of column 0 (degrees)
+
+      const uv = new Float32Array(cols * rows * 2);
+      const ll = new Float32Array(cols * rows * 2);
+      const hh = new Float32Array(cols * rows * 3);
+      const hem = (ci, rj) => hgt[(rj < 0 ? 0 : rj >= H ? H - 1 : rj) * W + (((ci % W) + W) % W)];
+
+      for (let rj = 0; rj < rows; rj++) {
+        const lat = (0.5 - rj / H) * Math.PI;
+        for (let ci = 0; ci < cols; ci++) {
+          const lon = (lon0 + (ci / W) * 360) * Math.PI / 180;
+          const k = rj * cols + ci;
+          ll[k * 2] = lon; ll[k * 2 + 1] = lat;
+          hh[k * 3] = (hem(ci, rj) - vmin) / range;
+          hh[k * 3 + 1] = (hem(ci + 1, rj) - vmin) / range;
+          hh[k * 3 + 2] = (hem(ci, rj + 1) - vmin) / range;
+          uv[k * 2] = ci / W;
+          uv[k * 2 + 1] = rj / H;
+        }
+      }
+
+      const idx = new Uint32Array(W * H * 6);
+      let o = 0;
+      for (let rj = 0; rj < H; rj++) {
+        for (let ci = 0; ci < W; ci++) {
+          const a = rj * cols + ci, b = a + 1, c = a + cols, d = c + 1;
+          idx[o++] = a; idx[o++] = c; idx[o++] = b;
+          idx[o++] = b; idx[o++] = c; idx[o++] = d;
+        }
+      }
+
+      const llbo = gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER, llbo); gl.bufferData(gl.ARRAY_BUFFER, ll, gl.STATIC_DRAW);
+      const hbo = gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER, hbo); gl.bufferData(gl.ARRAY_BUFFER, hh, gl.STATIC_DRAW);
+      const ubo = gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER, ubo); gl.bufferData(gl.ARRAY_BUFFER, uv, gl.STATIC_DRAW);
+      const ibo = gl.createBuffer(); gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, ibo); gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, idx, gl.STATIC_DRAW);
+      reliefGL = makeReliefGL(gl);
+      relief = {
+        llbo: llbo, hbo: hbo, ubo: ubo, ibo: ibo, count: idx.length,
+        step: [2 * Math.PI / W, -Math.PI / H]
+      };
+    }
+
+    function drawRelief() {
+      if (!relief) buildRelief();
+      if (!relief) return false;
+      const gl = glapi.gl;
+      gl.viewport(0, 0, glCanvas.width, glCanvas.height);
+      gl.clearColor(0, 0, 0, 0);
+      gl.enable(gl.DEPTH_TEST);
+      gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+
+      const rp = reliefGL;
+      gl.useProgram(rp.prog);
+      const g = d3.geoRotation(projection.rotate());
+      function vv(lon, lat) {
+        const p = g([lon, lat]);
+        const la = p[1] * Math.PI / 180, lo = p[0] * Math.PI / 180;
+        return [Math.cos(la) * Math.sin(lo), Math.sin(la), Math.cos(la) * Math.cos(lo)];
+      }
+      const A = vv(0, 0), B = vv(90, 0), C = vv(0, 90);
+      gl.uniformMatrix3fv(rp.u_rot, false,
+          new Float32Array([A[0], A[1], A[2], B[0], B[1], B[2], C[0], C[1], C[2]]));
+      const R = projection.scale() * dpr;
+      gl.uniform2f(rp.u_scale, 2 * R / glCanvas.width, 2 * R / glCanvas.height);
+      gl.uniform3f(rp.u_light, -0.45, 0.55, 0.70);
+      gl.uniform2f(rp.u_step, relief.step[0], relief.step[1]);
+      gl.uniform1f(rp.u_exag, (cfg.relief || 0.05) * vexagMult);
+
+      let t, use = 1.0;
+      if (surfaceMode === "photo" && ready.photo) t = textures.photo;
+      else if (surfaceMode === "elev" && ready.elev) t = textures.elev;
+      else {
+        use = 0.0;
+        t = ready.elev ? textures.elev : (ready.photo ? textures.photo : glapi.makeTexture());
+      }
+      gl.activeTexture(gl.TEXTURE0);
+      gl.bindTexture(gl.TEXTURE_2D, t);
+      gl.uniform1i(rp.u_tex, 0);
+      gl.uniform1f(rp.u_useTex, use);
+      const clay = cfg.clay || [0.66, 0.66, 0.66];
+      gl.uniform3f(rp.u_base, clay[0], clay[1], clay[2]);
+
+      gl.bindBuffer(gl.ARRAY_BUFFER, relief.llbo);
+      gl.enableVertexAttribArray(rp.a_ll); gl.vertexAttribPointer(rp.a_ll, 2, gl.FLOAT, false, 0, 0);
+      gl.bindBuffer(gl.ARRAY_BUFFER, relief.hbo);
+      gl.enableVertexAttribArray(rp.a_h); gl.vertexAttribPointer(rp.a_h, 3, gl.FLOAT, false, 0, 0);
+      gl.bindBuffer(gl.ARRAY_BUFFER, relief.ubo);
+      gl.enableVertexAttribArray(rp.a_uv); gl.vertexAttribPointer(rp.a_uv, 2, gl.FLOAT, false, 0, 0);
+      gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, relief.ibo);
+      gl.drawElements(gl.TRIANGLES, relief.count, gl.UNSIGNED_INT, 0);
+      gl.disable(gl.DEPTH_TEST);
+      return true;
+    }
+
+    function size() {
+      W = root.clientWidth || root.parentNode.clientWidth;
+      H = root.clientHeight || root.parentNode.clientHeight;
+      if (!W || !H) return;
+      glCanvas.style.width = W + "px"; glCanvas.style.height = H + "px";
+      glCanvas.width = W * dpr; glCanvas.height = H * dpr;
+      canvas.style.width = W + "px"; canvas.style.height = H + "px";
+      canvas.width = W * dpr; canvas.height = H * dpr;
+      projection.translate([W / 2, H / 2]).scale(Math.min(W, H) / 2 - 24);
+    }
+
+    function gradient() {
+      const g = ctx.createRadialGradient(
+          W * 0.38, H * 0.34, 0, W * 0.5, H * 0.5, Math.min(W, H) * 0.62);
+      g.addColorStop(0, cfg.gradient[0]);
+      g.addColorStop(0.7, cfg.gradient[1]);
+      g.addColorStop(1, cfg.gradient[2]);
+      return g;
+    }
+
+    function drawGL() {
+      if (!glapi) return false;
+      const gl = glapi.gl;
+      gl.viewport(0, 0, glCanvas.width, glCanvas.height);
+      gl.clearColor(0, 0, 0, 0);
+      gl.clear(gl.COLOR_BUFFER_BIT);
+      const t = activeTexture();
+      if (!t) return false;
+      gl.useProgram(glapi.prog);
+      const r = projection.rotate();
+      gl.uniform2f(glapi.U.u_center, W * dpr / 2, H * dpr / 2);
+      gl.uniform1f(glapi.U.u_radius, projection.scale() * dpr);
+      gl.uniform1f(glapi.U.u_lon0, -r[0] * Math.PI / 180);
+      gl.uniform1f(glapi.U.u_lat0, -r[1] * Math.PI / 180);
+      gl.uniform1f(glapi.U.u_os, cfg.texOffset || 0);
+      gl.activeTexture(gl.TEXTURE0);
+      gl.bindTexture(gl.TEXTURE_2D, t);
+      gl.uniform1i(glapi.U.u_tex, 0);
+      gl.drawArrays(gl.TRIANGLES, 0, 6);
+      return true;
+    }
+
+    function render() {
+      if (!W || !H) return;
+      const textured = terrainOn ? (drawRelief() || drawGL()) : drawGL();
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      ctx.clearRect(0, 0, W, H);
+
+      if (!textured) {
+        ctx.beginPath(); path(sphere);
+        ctx.fillStyle = gradient(); ctx.fill();
+        ctx.lineWidth = 0.8; ctx.strokeStyle = cfg.sphere; ctx.stroke();
+      }
+      ctx.beginPath(); path(graticule);
+      ctx.lineWidth = 0.5; ctx.strokeStyle = cfg.graticule; ctx.stroke();
+
+      if (showContours) {
+        ctx.beginPath(); path(cfg.contours);
+        ctx.lineWidth = textured ? cfg.contourW : 0.5;
+        ctx.strokeStyle = textured ? cfg.contourOn : cfg.contourOff;
+        ctx.stroke();
+      }
+      ctx.beginPath(); path(sphere);
+      ctx.lineWidth = 1.2; ctx.strokeStyle = cfg.sphere; ctx.stroke();
+      drawLabels();
+    }
+
+    function drawLabels() {
+      if (!showLabels) return;
+      const L = cfg.labels || [];
+      const r = projection.rotate();
+      const center = [-r[0], -r[1]];
+      ctx.textBaseline = "middle";
+      ctx.textAlign = "left";
+      ctx.lineJoin = "round";
+      for (let i = 0; i < L.length; i++) {
+        const e = L[i];
+        if (d3.geoDistance([e.lon, e.lat], center) > 1.42) continue;
+        const p = projection([e.lon, e.lat]);
+        if (!p) continue;
+        const st = cfg.labelStyle(e);
+        ctx.font = st.font;
+        const fx = p[0] + st.dx, fy = p[1];
+        ctx.lineWidth = 3;
+        ctx.strokeStyle = "rgba(4,7,14,0.9)";
+        ctx.strokeText(e.n, fx, fy);
+        ctx.fillStyle = st.fill;
+        ctx.fillText(e.n, fx, fy);
+        ctx.beginPath();
+        ctx.arc(p[0], p[1], st.r, 0, 6.2832);
+        ctx.fillStyle = st.dot;
+        ctx.fill();
+      }
+    }
+
+    let raf = null;
+    function request() {
+      if (raf === null) raf = requestAnimationFrame(function () { raf = null; render(); });
+    }
+
+    if (terrainBox) {
+      terrainBox.addEventListener("change", function (e) {
+        terrainOn = e.target.checked;
+        request();
+      });
+    }
+    if (vexag) {
+      vexag.addEventListener("input", function (e) {
+        vexagMult = parseFloat(e.target.value);
+        request();
+      });
+    }
+    if (surfaceModeSel) {
+      surfaceModeSel.addEventListener("change", function (e) {
+        surfaceMode = e.target.value;
+        request();
+      });
+    }
+    contourBox.addEventListener("change", function (e) { showContours = e.target.checked; request(); });
+    labelBox.addEventListener("change", function (e) { showLabels = e.target.checked; request(); });
+
+    let timer = null;
+    function tick() {
+      const r = projection.rotate();
+      projection.rotate([r[0] + 0.12, r[1], r[2]]);
+      request();
+    }
+    spinBox.addEventListener("change", function () {
+      if (spinBox.checked) timer = d3.timer(tick);
+      else if (timer) { timer.stop(); timer = null; }
+    });
+
+    const drag = d3.drag()
+        .on("start", function () { if (timer) { timer.stop(); timer = null; } })
+        .on("drag", function (e) {
+          const k = 0.25, r = projection.rotate();
+          projection.rotate([r[0] + e.dx * k, r[1] - e.dy * k, 0]);
+          request();
+        })
+        .on("end", function () { if (spinBox.checked) timer = d3.timer(tick); });
+    d3.select(canvas).call(drag);
+
+    canvas.addEventListener("wheel", function (e) {
+      e.preventDefault();
+      const s = Math.max(80, Math.min(
+          projection.scale() * (e.deltaY < 0 ? 1.12 : 0.89),
+          Math.min(W, H) * 4));
+      projection.scale(s);
+      request();
+    }, { passive: false });
+
+    size();
+    request();
+    if (window.ResizeObserver) {
+      new ResizeObserver(function () { size(); request(); }).observe(root);
+    } else {
+      window.addEventListener("resize", function () { size(); request(); });
+    }
+
+    return {
+      resize: function () { size(); request(); },
+      controls: root.querySelector(".controls")
+    };
+  }
+
+  const globes = {};
+
+  globes.moon = createGlobe({
+    root: document.getElementById("moon"),
+    rotate: [-20, -18, 0],
+    texture: window.LUNAR_TEXTURE,
+    elevTexture: window.LUNAR_ELEV,
+    height: window.LUNAR_HEIGHT, lon0: 0, relief: 0.05,
+    texOffset: 0.0,                 // LROC map spans 0..360°E
+    contours: window.CONTOURS,
+    labels: window.LUNAR_LABELS,
+    gradient: ["#232833", "#12151d", "#080a10"],   // grey
+    clay: [0.68, 0.69, 0.72],
+    graticule: "#2b3140",
+    sphere: "#6b7488",
+    contourOn: "rgba(205,214,228,0.45)",
+    contourOff: "#c9d3e0",
+    contourW: 0.7,
+    labelStyle: function (L) {
+      const sea = L.t === "sea";
+      return {
+        font: sea ? "italic bold 13px Georgia, 'Times New Roman', serif"
+                  : "11px Helvetica, Arial, sans-serif",
+        dx: sea ? 9 : 5, r: sea ? 3 : 2,
+        fill: sea ? "#e6ecf6" : "#dfe6f0",
+        dot: sea ? "#cdd6e4" : "#e6ecf6"
+      };
+    }
+  });
+
+  globes.earth = createGlobe({
+    root: document.getElementById("earth"),
+    rotate: [-10, -20, 0],
+    texture: window.EARTH_TEXTURE,
+    elevTexture: window.EARTH_ELEV,
+    height: window.EARTH_HEIGHT, lon0: -180, relief: 0.05,
+    texOffset: 0.5,                 // Blue Marble spans −180..180°
+    contours: window.EARTH_CONTOURS,
+    labels: window.EARTH_LABELS,
+    gradient: ["#0e2140", "#081426", "#050a14"],   // blue
+    clay: [0.36, 0.55, 0.80],
+    graticule: "#244a70",
+    sphere: "#4a7fb5",
+    contourOn: "rgba(120,190,255,0.5)",
+    contourOff: "#5fb0ff",
+    contourW: 0.7,
+    labelStyle: function (L) {
+      const cap = L.t === "capital";
+      return {
+        font: cap ? "bold 13px Georgia, 'Times New Roman', serif"
+                  : "11px Helvetica, Arial, sans-serif",
+        dx: cap ? 9 : 5, r: cap ? 3 : 2,
+        fill: cap ? "#ffe08a" : "#eef4ff",
+        dot: cap ? "#ffcf5c" : "#eef4ff"
+      };
+    }
+  });
+
+  globes.mars = createGlobe({
+    root: document.getElementById("mars"),
+    rotate: [-40, -20, 0],
+    texture: window.MARS_TEXTURE,
+    elevTexture: window.MARS_ELEV,
+    height: window.MARS_HEIGHT, lon0: -180, relief: 0.05,
+    texOffset: 0.5,                 // Viking mosaic spans −180..180°
+    contours: window.MARS_CONTOURS,
+    labels: window.MARS_LABELS,
+    gradient: ["#3a1a10", "#241009", "#140704"],   // rust
+    clay: [0.76, 0.44, 0.27],
+    graticule: "#5a3320",
+    sphere: "#a05a33",
+    contourOn: "rgba(245,190,140,0.5)",
+    contourOff: "#e8a878",
+    contourW: 0.7,
+    labelStyle: function (L) {
+      const major = L.t === "major";
+      return {
+        font: major ? "bold 12px Georgia, 'Times New Roman', serif"
+                    : "11px Helvetica, Arial, sans-serif",
+        dx: major ? 8 : 5, r: major ? 3 : 2,
+        fill: major ? "#ffd9a8" : "#f3e2d0",
+        dot: major ? "#ffc070" : "#f3e2d0"
+      };
+    }
+  });
+
+  const tabs = document.querySelectorAll("#tabs button");
+  const panels = document.querySelectorAll(".panel");
+  const sidebar = document.getElementById("sidebar");
+  const sidebarTitle = document.getElementById("sidebar-title");
+  const sidebarControls = document.getElementById("sidebar-controls");
+
+  function activate(btn) {
+    tabs.forEach(function (b) { b.classList.toggle("active", b === btn); });
+    panels.forEach(function (p) {
+      p.classList.toggle("active", p.id === btn.dataset.tab);
+    });
+    const tab = btn.dataset.tab;
+    const g = globes[tab];
+    sidebar.dataset.theme = tab;
+    sidebarTitle.textContent = tab.toUpperCase() + " \u00b7 ADJUST";
+    while (sidebarControls.firstChild) {
+      sidebarControls.removeChild(sidebarControls.firstChild);
+    }
+    if (g && g.controls) sidebarControls.appendChild(g.controls);
+    if (g) g.resize();
+  }
+  tabs.forEach(function (btn) {
+    btn.addEventListener("click", function () { activate(btn); });
+  });
+  activate(document.querySelector("#tabs button.active"));
+})();
+</script>
+</body>
+</html>

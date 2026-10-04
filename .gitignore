@@ -1,0 +1,14 @@
+.venv/
+__pycache__/
+*.pyc
+
+# Large / downloaded inputs and generated artefacts
+data/moon/LDEM_128.IMG
+data/**/*.tif
+data/**/*.jpg
+data/moon/lunar_*.csv
+data/earth/*
+data/mars/*
+output/
+web/**/*.js
+!web/d3.min.js
