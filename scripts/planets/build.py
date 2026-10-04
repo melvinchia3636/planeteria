@@ -314,7 +314,7 @@ def task_catalog(body):
             if not name or lon is None or lat is None:
                 continue
             lon = float(lon)
-            if lon > 180:
+            if cfg.get("lon0", -180.0) < 0 and lon > 180:
                 lon -= 360
             rows.append(
                 [
