@@ -17,24 +17,16 @@
                  padding: 13px 26px; font: 600 13px 'JetBrains Mono', ui-monospace, Menlo, monospace;
                  letter-spacing: .12em; color: #55627a; border-bottom: 2px solid transparent; }
   #tabs button:hover { color: #8a99b3; }
-  #tabs button.active[data-tab="moon"]  { color: #d7dfea; border-color: #c9d3e0; }
-  #tabs button.active[data-tab="earth"] { color: #8cc4ff; border-color: #4a9bff; }
-  #tabs button.active[data-tab="mars"]  { color: #ffb884; border-color: #e0732c; }
+  #tabs button.active { color: var(--accent, #d7dfea); border-color: var(--accent, #8a99b3); }
   #main { position: relative; flex: 1 1 auto; min-height: 0; display: flex; }
   #app { position: relative; flex: 1 1 auto; min-width: 0; }
   #sidebar { flex: 0 0 224px; box-sizing: border-box; padding: 16px 18px;
              background: #070b13; border-left: 1px solid rgba(255,255,255,0.07);
              overflow-y: auto; }
-  #sidebar[data-theme="moon"]  { --accent: #c9d3e0; --dim: #8f9bb3; }
-  #sidebar[data-theme="earth"] { --accent: #6fb4ff; --dim: #4a7fb5; }
-  #sidebar[data-theme="mars"]  { --accent: #e8a878; --dim: #b5764a; }
   #sidebar h2 { margin: 0 0 16px; font: 600 12px 'JetBrains Mono', ui-monospace, Menlo, monospace;
                 letter-spacing: .18em; color: var(--accent, #9fd0ff); }
   .panel { position: absolute; inset: 0; display: none; overflow: hidden; }
   .panel.active { display: block; }
-  .moon  { --accent: #c9d3e0; --dim: #8f9bb3; }
-  .earth { --accent: #6fb4ff; --dim: #4a7fb5; }
-  .mars  { --accent: #e8a878; --dim: #b5764a; }
   .panel h1 { position: absolute; top: 16px; left: 18px; margin: 0; z-index: 2;
               font: 600 15px/1.4 'JetBrains Mono', ui-monospace, Menlo, monospace;
               letter-spacing: .06em; color: var(--accent); pointer-events: none; }
@@ -59,87 +51,28 @@
 </style>
 </head>
 <body>
-<div id="tabs">
-  <button data-tab="moon" class="active">MOON</button>
-  <button data-tab="earth">EARTH</button>
-  <button data-tab="mars">MARS</button>
-</div>
+<div id="tabs"></div>
 <div id="main">
-<div id="app">
-  <section class="panel moon active" id="moon">
-    <h1>MOON <small>LOLA LDEM_128 · 500 m contours</small></h1>
-    <canvas class="gl"></canvas><canvas class="ov"></canvas>
-    <div class="hint">drag to rotate · scroll to zoom</div>
-    <div class="controls">
-      <label>surface <select class="surfacemode">
-        <option value="off" selected>off</option>
-        <option value="photo">photo</option>
-        <option value="elev">elevation</option>
-      </select></label>
-      <label>3D <input type="checkbox" class="terrainbox"></label>
-      <label>relief <input type="range" class="vexag" min="0" max="4" step="0.25" value="1"></label>
-      <label>contours <input type="checkbox" class="contourbox" checked></label>
-      <label>labels <input type="checkbox" class="labelbox" checked></label>
-      <label>auto-spin <input type="checkbox" class="spinbox"></label>
+  <div id="app"></div>
+  <aside id="sidebar">
+    <h2 id="sidebar-title"></h2>
+    <div id="sidebar-controls">
+      <div class="controls">
+        <label>surface <select class="surfacemode">
+          <option value="off" selected>off</option>
+          <option value="photo">photo</option>
+          <option value="elev">elevation</option></select></label>
+        <label>3D <input type="checkbox" class="terrainbox"></label>
+        <label>relief <input type="range" class="vexag" min="0" max="4" step="0.25" value="1"></label>
+        <label>contours <input type="checkbox" class="contourbox" checked></label>
+        <label>labels <input type="checkbox" class="labelbox" checked></label>
+        <label>auto-spin <input type="checkbox" class="spinbox"></label>
+      </div>
     </div>
-  </section>
-  <section class="panel earth" id="earth">
-    <h1>EARTH <small>ETOPO 2022 · 1000 m contours</small></h1>
-    <canvas class="gl"></canvas><canvas class="ov"></canvas>
-    <div class="hint">drag to rotate · scroll to zoom</div>
-    <div class="controls">
-      <label>surface <select class="surfacemode">
-        <option value="off" selected>off</option>
-        <option value="photo">photo</option>
-        <option value="elev">elevation</option>
-      </select></label>
-      <label>3D <input type="checkbox" class="terrainbox"></label>
-      <label>relief <input type="range" class="vexag" min="0" max="4" step="0.25" value="1"></label>
-      <label>contours <input type="checkbox" class="contourbox" checked></label>
-      <label>labels <input type="checkbox" class="labelbox" checked></label>
-      <label>auto-spin <input type="checkbox" class="spinbox"></label>
-    </div>
-  </section>
-  <section class="panel mars" id="mars">
-    <h1>MARS <small>MOLA · 1000 m contours</small></h1>
-    <canvas class="gl"></canvas><canvas class="ov"></canvas>
-    <div class="hint">drag to rotate · scroll to zoom</div>
-    <div class="controls">
-      <label>surface <select class="surfacemode">
-        <option value="off" selected>off</option>
-        <option value="photo">photo</option>
-        <option value="elev">elevation</option>
-      </select></label>
-      <label>3D <input type="checkbox" class="terrainbox"></label>
-      <label>relief <input type="range" class="vexag" min="0" max="4" step="0.25" value="1"></label>
-      <label>contours <input type="checkbox" class="contourbox" checked></label>
-      <label>labels <input type="checkbox" class="labelbox" checked></label>
-      <label>auto-spin <input type="checkbox" class="spinbox"></label>
-    </div>
-  </section>
-</div>
-  <aside id="sidebar" data-theme="moon">
-    <h2 id="sidebar-title">MOON · ADJUST</h2>
-    <div id="sidebar-controls"></div>
   </aside>
 </div>
 
 <script src="d3.min.js"></script>
-<script src="moon/lunar_contours.js"></script>
-<script src="moon/lunar_labels.js"></script>
-<script src="moon/lunar_truecolor.js"></script>
-<script src="moon/lunar_elev.js"></script>
-<script src="moon/lunar_height.js"></script>
-<script src="earth/earth_contours.js"></script>
-<script src="earth/earth_labels.js"></script>
-<script src="earth/earth_texture.js"></script>
-<script src="earth/earth_elev.js"></script>
-<script src="earth/earth_height.js"></script>
-<script src="mars/mars_contours.js"></script>
-<script src="mars/mars_labels.js"></script>
-<script src="mars/mars_texture.js"></script>
-<script src="mars/mars_elev.js"></script>
-<script src="mars/mars_height.js"></script>
 <script>
 (function () {
   "use strict";
@@ -300,12 +233,13 @@
     const ctx = canvas.getContext("2d");
     let W = 0, H = 0;
 
-    const surfaceModeSel = root.querySelector(".surfacemode");
-    const terrainBox = root.querySelector(".terrainbox");
-    const vexag = root.querySelector(".vexag");
-    const contourBox = root.querySelector(".contourbox");
-    const labelBox = root.querySelector(".labelbox");
-    const spinBox = root.querySelector(".spinbox");
+    const ctl = document.getElementById("sidebar-controls");
+    const surfaceModeSel = ctl.querySelector(".surfacemode");
+    const terrainBox = ctl.querySelector(".terrainbox");
+    const vexag = ctl.querySelector(".vexag");
+    const contourBox = ctl.querySelector(".contourbox");
+    const labelBox = ctl.querySelector(".labelbox");
+    const spinBox = ctl.querySelector(".spinbox");
 
     const projection = d3.geoOrthographic().rotate(cfg.rotate).clipAngle(90);
     const path = d3.geoPath(projection, ctx);
@@ -316,9 +250,10 @@
     const textures = { photo: null, elev: null };
     const ready = { photo: false, elev: false };
     let surfaceMode = surfaceModeSel ? surfaceModeSel.value : "elev";
-    let terrainOn = false;
+    let terrainOn = terrainBox ? terrainBox.checked : false;
     let vexagMult = vexag ? parseFloat(vexag.value) : 1;
-    let showContours = true, showLabels = true;
+    let showContours = contourBox ? contourBox.checked : true;
+    let showLabels = labelBox ? labelBox.checked : true;
 
     function loadTexture(src, key) {
       if (!glapi || !src) return;
@@ -616,122 +551,184 @@
     }
 
     return {
-      resize: function () { size(); request(); },
-      controls: root.querySelector(".controls")
+      resize: function () { size(); request(); }
     };
   }
 
-  const globes = {};
-
-  globes.moon = createGlobe({
-    root: document.getElementById("moon"),
-    rotate: [-20, -18, 0],
-    texture: window.LUNAR_TEXTURE,
-    elevTexture: window.LUNAR_ELEV,
-    height: window.LUNAR_HEIGHT, lon0: 0, relief: 0.05,
-    texOffset: 0.0,                 // LROC map spans 0..360°E
-    contours: window.CONTOURS,
-    labels: window.LUNAR_LABELS,
-    gradient: ["#232833", "#12151d", "#080a10"],   // grey
-    clay: [0.68, 0.69, 0.72],
-    graticule: "#2b3140",
-    sphere: "#6b7488",
-    contourOn: "rgba(205,214,228,0.45)",
-    contourOff: "#c9d3e0",
-    contourW: 0.7,
-    labelStyle: function (L) {
-      const sea = L.t === "sea";
-      return {
-        font: sea ? "italic bold 13px Georgia, 'Times New Roman', serif"
-                  : "11px Helvetica, Arial, sans-serif",
-        dx: sea ? 9 : 5, r: sea ? 3 : 2,
-        fill: sea ? "#e6ecf6" : "#dfe6f0",
-        dot: sea ? "#cdd6e4" : "#e6ecf6"
-      };
-    }
-  });
-
-  globes.earth = createGlobe({
-    root: document.getElementById("earth"),
-    rotate: [-10, -20, 0],
-    texture: window.EARTH_TEXTURE,
-    elevTexture: window.EARTH_ELEV,
-    height: window.EARTH_HEIGHT, lon0: -180, relief: 0.05,
-    texOffset: 0.5,                 // Blue Marble spans −180..180°
-    contours: window.EARTH_CONTOURS,
-    labels: window.EARTH_LABELS,
-    gradient: ["#0e2140", "#081426", "#050a14"],   // blue
-    clay: [0.36, 0.55, 0.80],
-    graticule: "#244a70",
-    sphere: "#4a7fb5",
-    contourOn: "rgba(120,190,255,0.5)",
-    contourOff: "#5fb0ff",
-    contourW: 0.7,
-    labelStyle: function (L) {
-      const cap = L.t === "capital";
-      return {
-        font: cap ? "bold 13px Georgia, 'Times New Roman', serif"
-                  : "11px Helvetica, Arial, sans-serif",
-        dx: cap ? 9 : 5, r: cap ? 3 : 2,
-        fill: cap ? "#ffe08a" : "#eef4ff",
-        dot: cap ? "#ffcf5c" : "#eef4ff"
-      };
-    }
-  });
-
-  globes.mars = createGlobe({
-    root: document.getElementById("mars"),
-    rotate: [-40, -20, 0],
-    texture: window.MARS_TEXTURE,
-    elevTexture: window.MARS_ELEV,
-    height: window.MARS_HEIGHT, lon0: -180, relief: 0.05,
-    texOffset: 0.5,                 // Viking mosaic spans −180..180°
-    contours: window.MARS_CONTOURS,
-    labels: window.MARS_LABELS,
-    gradient: ["#3a1a10", "#241009", "#140704"],   // rust
-    clay: [0.76, 0.44, 0.27],
-    graticule: "#5a3320",
-    sphere: "#a05a33",
-    contourOn: "rgba(245,190,140,0.5)",
-    contourOff: "#e8a878",
-    contourW: 0.7,
-    labelStyle: function (L) {
-      const major = L.t === "major";
-      return {
-        font: major ? "bold 12px Georgia, 'Times New Roman', serif"
-                    : "11px Helvetica, Arial, sans-serif",
-        dx: major ? 8 : 5, r: major ? 3 : 2,
-        fill: major ? "#ffd9a8" : "#f3e2d0",
-        dot: major ? "#ffc070" : "#f3e2d0"
-      };
-    }
-  });
-
-  const tabs = document.querySelectorAll("#tabs button");
-  const panels = document.querySelectorAll(".panel");
+  const tabsEl = document.getElementById("tabs");
+  const appEl = document.getElementById("app");
   const sidebar = document.getElementById("sidebar");
   const sidebarTitle = document.getElementById("sidebar-title");
-  const sidebarControls = document.getElementById("sidebar-controls");
 
-  function activate(btn) {
-    tabs.forEach(function (b) { b.classList.toggle("active", b === btn); });
-    panels.forEach(function (p) {
-      p.classList.toggle("active", p.id === btn.dataset.tab);
-    });
-    const tab = btn.dataset.tab;
-    const g = globes[tab];
-    sidebar.dataset.theme = tab;
-    sidebarTitle.textContent = tab.toUpperCase() + " \u00b7 ADJUST";
-    while (sidebarControls.firstChild) {
-      sidebarControls.removeChild(sidebarControls.firstChild);
-    }
-    if (g && g.controls) sidebarControls.appendChild(g.controls);
-    if (g) g.resize();
+  const PLANETS = [
+    { id: "moon", display: "MOON", subtitle: "LOLA LDEM_128 \u00b7 500 m contours",
+      files: ["moon/moon_contours.js","moon/moon_labels.js","moon/moon_texture.js","moon/moon_elev.js","moon/moon_height.js"],
+      g: {contours:"MOON_CONTOURS",labels:"MOON_LABELS",texture:"MOON_TEXTURE",elev:"MOON_ELEV",height:"MOON_HEIGHT"},
+      rotate:[-20,-18,0], texOffset:0.0, lon0:0, relief:0.05, labelKind:"sea",
+      accent:"#c9d3e0", dim:"#8f9bb3",
+      gradient:["#232833","#12151d","#080a10"], clay:[0.68,0.69,0.72],
+      graticule:"#2b3140", sphere:"#6b7488",
+      contourOn:"rgba(205,214,228,0.45)", contourOff:"#c9d3e0" },
+    { id: "earth", display: "EARTH", subtitle: "ETOPO 2022 \u00b7 1000 m contours",
+      files: ["earth/earth_contours.js","earth/earth_labels.js","earth/earth_texture.js","earth/earth_elev.js","earth/earth_height.js"],
+      g: {contours:"EARTH_CONTOURS",labels:"EARTH_LABELS",texture:"EARTH_TEXTURE",elev:"EARTH_ELEV",height:"EARTH_HEIGHT"},
+      rotate:[-10,-20,0], texOffset:0.5, lon0:-180, relief:0.05, labelKind:"city",
+      accent:"#6fb4ff", dim:"#4a7fb5",
+      gradient:["#0e2140","#081426","#050a14"], clay:[0.36,0.55,0.80],
+      graticule:"#244a70", sphere:"#4a7fb5",
+      contourOn:"rgba(120,190,255,0.5)", contourOff:"#5fb0ff" },
+    { id: "mars", display: "MARS", subtitle: "MOLA \u00b7 1000 m contours",
+      files: ["mars/mars_contours.js","mars/mars_labels.js","mars/mars_texture.js","mars/mars_elev.js","mars/mars_height.js"],
+      g: {contours:"MARS_CONTOURS",labels:"MARS_LABELS",texture:"MARS_TEXTURE",elev:"MARS_ELEV",height:"MARS_HEIGHT"},
+      rotate:[-40,-20,0], texOffset:0.5, lon0:-180, relief:0.05, labelKind:"feature",
+      accent:"#e8a878", dim:"#b5764a",
+      gradient:["#3a1a10","#241009","#140704"], clay:[0.76,0.44,0.27],
+      graticule:"#5a3320", sphere:"#a05a33",
+      contourOn:"rgba(245,190,140,0.5)", contourOff:"#e8a878" },
+    { id: "mercury", display: "MERCURY", subtitle: "MESSENGER \u00b7 1000 m contours",
+      files: ["mercury/mercury_contours.js","mercury/mercury_labels.js","mercury/mercury_texture.js","mercury/mercury_elev.js","mercury/mercury_height.js"],
+      g: {contours:"MERCURY_CONTOURS",labels:"MERCURY_LABELS",texture:"MERCURY_TEXTURE",elev:"MERCURY_ELEV",height:"MERCURY_HEIGHT"},
+      rotate:[-10,-20,0], texOffset:0.5, lon0:-180, relief:0.06, labelKind:"feature",
+      accent:"#d3c2a0", dim:"#93856a",
+      gradient:["#2b2519","#171309","#0a0805"], clay:[0.72,0.67,0.57],
+      graticule:"#4a4030", sphere:"#a8946f",
+      contourOn:"rgba(240,220,180,0.5)", contourOff:"#d3c2a0" },
+    { id: "venus", display: "VENUS", subtitle: "Magellan \u00b7 1000 m contours",
+      files: ["venus/venus_contours.js","venus/venus_labels.js","venus/venus_texture.js","venus/venus_elev.js","venus/venus_height.js"],
+      g: {contours:"VENUS_CONTOURS",labels:"VENUS_LABELS",texture:"VENUS_TEXTURE",elev:"VENUS_ELEV",height:"VENUS_HEIGHT"},
+      rotate:[-20,-15,0], texOffset:0.5, lon0:-180, relief:0.05, labelKind:"feature",
+      accent:"#ffcf8a", dim:"#b58a4a",
+      gradient:["#3a2a10","#241807","#140d04"], clay:[0.85,0.62,0.32],
+      graticule:"#5a4020", sphere:"#c89050",
+      contourOn:"rgba(255,215,150,0.5)", contourOff:"#ffcf8a" },
+    { id: "ceres", display: "CERES", subtitle: "Dawn \u00b7 2000 m contours",
+      files: ["ceres/ceres_contours.js","ceres/ceres_labels.js","ceres/ceres_texture.js","ceres/ceres_elev.js","ceres/ceres_height.js"],
+      g: {contours:"CERES_CONTOURS",labels:"CERES_LABELS",texture:"CERES_TEXTURE",elev:"CERES_ELEV",height:"CERES_HEIGHT"},
+      rotate:[-20,-20,0], texOffset:0.5, lon0:-180, relief:0.06, labelKind:"feature",
+      accent:"#aebfd8", dim:"#6f7f97",
+      gradient:["#1a2030","#0e131d","#070a10"], clay:[0.62,0.63,0.68],
+      graticule:"#33404f", sphere:"#7f8ea3",
+      contourOn:"rgba(180,200,230,0.5)", contourOff:"#aebfd8" },
+    { id: "vesta", display: "VESTA", subtitle: "Dawn \u00b7 2000 m contours",
+      files: ["vesta/vesta_contours.js","vesta/vesta_labels.js","vesta/vesta_texture.js","vesta/vesta_elev.js","vesta/vesta_height.js"],
+      g: {contours:"VESTA_CONTOURS",labels:"VESTA_LABELS",texture:"VESTA_TEXTURE",elev:"VESTA_ELEV",height:"VESTA_HEIGHT"},
+      rotate:[-20,-20,0], texOffset:0.5, lon0:-180, relief:0.06, labelKind:"feature",
+      accent:"#d0b6a6", dim:"#8f7566",
+      gradient:["#2a201a","#171009","#0a0705"], clay:[0.70,0.62,0.55],
+      graticule:"#4a3a30", sphere:"#a08a78",
+      contourOn:"rgba(230,200,180,0.5)", contourOff:"#d0b6a6" },
+    { id: "pluto", display: "PLUTO", subtitle: "New Horizons \u00b7 1000 m contours",
+      files: ["pluto/pluto_contours.js","pluto/pluto_labels.js","pluto/pluto_texture.js","pluto/pluto_elev.js","pluto/pluto_height.js"],
+      g: {contours:"PLUTO_CONTOURS",labels:"PLUTO_LABELS",texture:"PLUTO_TEXTURE",elev:"PLUTO_ELEV",height:"PLUTO_HEIGHT"},
+      rotate:[-180,-20,0], texOffset:0.5, lon0:-180, relief:0.05, labelKind:"feature",
+      accent:"#e6b88c", dim:"#a07a52",
+      gradient:["#2e2018","#1a110b","#0a0605"], clay:[0.80,0.64,0.50],
+      graticule:"#4a3428", sphere:"#b08a68",
+      contourOn:"rgba(245,210,170,0.5)", contourOff:"#e6b88c" }
+  ];
+
+  const globes = {};
+  const loading = {};
+
+  function labelStyleFor(kind) {
+    if (kind === "sea") return function (L) {
+      const sea = L.t === "sea";
+      return { font: sea ? "italic bold 13px Georgia, 'Times New Roman', serif"
+                         : "11px Helvetica, Arial, sans-serif",
+        dx: sea ? 9 : 5, r: sea ? 3 : 2,
+        fill: sea ? "#e6ecf6" : "#dfe6f0", dot: sea ? "#cdd6e4" : "#e6ecf6" };
+    };
+    if (kind === "city") return function (L) {
+      const cap = L.t === "capital";
+      return { font: cap ? "bold 13px Georgia, 'Times New Roman', serif"
+                         : "11px Helvetica, Arial, sans-serif",
+        dx: cap ? 9 : 5, r: cap ? 3 : 2,
+        fill: cap ? "#ffe08a" : "#eef4ff", dot: cap ? "#ffcf5c" : "#eef4ff" };
+    };
+    return function (L) {
+      const major = L.t === "major";
+      return { font: major ? "bold 12px Georgia, 'Times New Roman', serif"
+                           : "11px Helvetica, Arial, sans-serif",
+        dx: major ? 8 : 5, r: major ? 3 : 2,
+        fill: major ? "#ffd9a8" : "#f3e2d0", dot: major ? "#ffc070" : "#f3e2d0" };
+    };
   }
-  tabs.forEach(function (btn) {
-    btn.addEventListener("click", function () { activate(btn); });
+
+  function buildPanel(p) {
+    const sec = document.createElement("section");
+    sec.className = "panel";
+    sec.id = p.id;
+    sec.style.setProperty("--accent", p.accent);
+    sec.style.setProperty("--dim", p.dim);
+    sec.innerHTML =
+      '<h1>' + p.display + ' <small>' + p.subtitle + '</small></h1>' +
+      '<canvas class="gl"></canvas><canvas class="ov"></canvas>' +
+      '<div class="hint">drag to rotate \u00b7 scroll to zoom</div>';
+    return sec;
+  }
+
+  PLANETS.forEach(function (p) {
+    const btn = document.createElement("button");
+    btn.dataset.tab = p.id;
+    btn.textContent = p.display;
+    btn.style.setProperty("--accent", p.accent);
+    btn.addEventListener("click", function () { activate(p.id); });
+    tabsEl.appendChild(btn);
+    appEl.appendChild(buildPanel(p));
   });
-  activate(document.querySelector("#tabs button.active"));
+
+  function loadScripts(list, done) {
+    let i = 0;
+    (function next() {
+      if (i >= list.length) return done();
+      const s = document.createElement("script");
+      s.src = list[i++];
+      s.onload = next;
+      s.onerror = next;
+      document.body.appendChild(s);
+    })();
+  }
+
+  function makeGlobe(p, root) {
+    const g = p.g;
+    return createGlobe({
+      root: root,
+      rotate: p.rotate, texOffset: p.texOffset, lon0: p.lon0, relief: p.relief,
+      clay: p.clay, gradient: p.gradient, graticule: p.graticule, sphere: p.sphere,
+      contourOn: p.contourOn, contourOff: p.contourOff, contourW: 0.7,
+      texture: window[g.texture], elevTexture: window[g.elev],
+      height: window[g.height], contours: window[g.contours],
+      labels: window[g.labels], labelStyle: labelStyleFor(p.labelKind)
+    });
+  }
+
+  function showSidebar(p) {
+    sidebar.style.setProperty("--accent", p.accent);
+    sidebar.style.setProperty("--dim", p.dim);
+    sidebarTitle.textContent = p.display + " \u00b7 ADJUST";
+  }
+
+  function activate(id) {
+    const p = PLANETS.filter(function (x) { return x.id === id; })[0];
+    tabsEl.querySelectorAll("button").forEach(function (b) {
+      b.classList.toggle("active", b.dataset.tab === id);
+    });
+    appEl.querySelectorAll(".panel").forEach(function (el) {
+      el.classList.toggle("active", el.id === id);
+    });
+    showSidebar(p);
+    if (globes[id]) { globes[id].resize(); return; }
+    if (loading[id]) return;
+    loading[id] = true;
+    sidebarTitle.textContent = p.display + " \u00b7 loading\u2026";
+    loadScripts(p.files, function () {
+      globes[id] = makeGlobe(p, document.getElementById(id));
+      showSidebar(p);
+      globes[id].resize();
+    });
+  }
+
+  activate("moon");
 })();
 </script>
 </body>

@@ -1,150 +1,120 @@
 # moon-is-fun
 
-Contour maps, shaded-relief images and interactive draggable globes for the
-**Moon** and **Earth**, built from real elevation models. Rendered with
-numpy/scipy/scikit-image; DEMs are read through GDAL. No GIS tooling is needed.
+Elevation globes and maps for eight worlds — **Moon, Earth, Mars, Mercury,
+Venus, Ceres, Vesta, Pluto** — built from real DEMs with numpy/scipy/
+scikit-image, a WebGL viewer, and no GIS tooling.
 
-The codebase is organised **by planet** under `data/`, `scripts/`, `output/`
-and `web/`.
-
-![flat map](output/moon/lunar_globe_v3_labeled.png)
-
-## Moon
-
-`data/moon/LDEM_128.IMG` (2 GB) is the LRO **L**unar **O**rbiter **L**aser
-**A**ltimeter gridded digital elevation model, V3.0:
-
-| property | value |
-|---|---|
-| grid | 23040 × 46080 (128 px/deg, global) |
-| extent | 90°N…90°S, 0…360°E (Simple Cylindrical) |
-| sample | 16-bit **little-endian** signed integer |
-| height | `elevation_m = DN × 0.5` above a 1737.4 km sphere |
-
-The `.IMG` is headerless raw pixels; all metadata lives in
-`data/moon/LDEM_128.LBL`. The pipeline reads it through **GDAL's PDS driver**
-(`scripts/moon/common.py` opens the label with `rasterio`), which supplies the
-byte order, `scale`, `nodata`, CRS and geotransform — nothing about the format is
-hand-parsed. (Cross-check: at 16-bit little-endian, `DN × 0.5` gives a global
-range of −9.1…+10.8 km, matching the Moon.)
-
-Named features come from the USGS/IAU [Gazetteer of Planetary
-Nomenclature](https://planetarynames.wr.usgs.gov/) (Moon center points).
+**→ open [`web/index.html`](web/index.html)** for the tabbed interactive globes.
 
 ## Layout
 
 ```
-├── data/<planet>/    elevation models, imagery + extracted catalogues
-├── scripts/<planet>/ the Python pipeline for each body
-├── output/<planet>/  generated maps (SVG / PNG)
-├── web/<planet>/     the interactive d3 globe (index.html + generated JS)
-├── web/d3.min.js     shared d3 build
-├── pyproject.toml / Makefile
+data/<body>/        DEM + surface rasters, extracted feature catalogues
+scripts/planets/    the whole pipeline
+  config.py           per-body configuration (rasters, styling, naming)
+  common.py           DEM/colour readers + latitude-aware hillshade
+  build.py            task CLI (relief, truecolor, contours, …)
+output/<body>/      generated PNG maps (+ optional flat SVG)
+web/<body>/         generated globe data (JS globals, loaded lazily)
+web/index.html      the tabbed globe viewer
+web/d3.min.js       bundled d3 build
 ```
 
 ## Setup
 
-Install [uv](https://docs.astral.sh/uv/), drop `LDEM_128.IMG` into
-`data/moon/`, then:
+Install [uv](https://docs.astral.sh/uv/), drop each body's two rasters into
+`data/<body>/` (see `scripts/planets/config.py` for the exact filenames), then:
 
 ```sh
-make all       # every planet
-make moon      # Moon only
+make                 # build every body
+make mars            # build one body
+make flat-moon       # optional flat SVG + labelled SVG for one body
+make flat-all        # flat SVG + labelled SVG for every body
 ```
 
-or run individual steps (Moon):
+or run task-by-task:
 
 ```sh
-uv run scripts/moon/extract_catalog.py    # data/moon/lunar_{craters,seas}.csv
-uv run scripts/moon/render_flat.py        # output/moon/lunar_globe_v3.svg
-uv run scripts/moon/label_map.py          # output/moon/lunar_globe_v3_labeled.svg
-uv run scripts/moon/render_relief.py      # output/moon/lunar_relief.png
-uv run scripts/moon/render_moon.py        # output/moon/lunar_moon.png
-uv run scripts/moon/render_truecolor.py   # output/moon/lunar_truecolor.png
-uv run scripts/moon/build_globe_data.py   # web/moon/lunar_contours.js
-uv run scripts/moon/build_labels.py       # web/moon/lunar_labels.js
-uv run scripts/moon/build_globe_texture.py# web/moon/lunar_truecolor.js
+uv run scripts/planets/build.py all  mars   # every task for Mars
+uv run scripts/planets/build.py relief moon # just the hypsometric relief map
 ```
 
-## The coloured relief map
+Tasks: `relief`, `truecolor`, `contours`, `texture`, `height`, `catalog`,
+`labels`, `flat`, `flatlabels`. Each writes to `output/<body>/` and
+`web/<body>/` and defines the globals `window.<BODY>_{CONTOURS,LABELS,TEXTURE,
+ELEV,HEIGHT}`.
 
-`output/moon/lunar_relief.png` is a 5760 × 2880 equirectangular map: a hillshade
-computed from the elevation gradients (scaled with the real metres-per-pixel
-from the geotransform) multiplied by a hypsometric colour ramp, written as an
-8-bit RGB PNG through GDAL. Tune `Z_FACTOR` (relief exaggeration), `PALETTE`
-and `AZIMUTH`/`ALTITUDE` (sun position) in `scripts/moon/render_relief.py`.
+## Data sources
 
-`output/moon/lunar_moon.png` is the same hillshade shown the way the eye sees
-the Moon — a neutral warm-grey albedo blending with the relief, dark maria and
-bright highlands — from `scripts/moon/render_moon.py`.
+| body | elevation | surface |
+|---|---|---|
+| Moon | `LDEM_128.IMG`/`.LBL` (LOLA, PDS3) | LROC WAC colour (NASA SVS) |
+| Earth | ETOPO 2022 30″ | Blue Marble |
+| Mars | MOLA 463 m | Viking colour mosaic |
+| Mercury | MESSENGER DEM 665 m | MESSENGER colour 665 m |
+| Venus | Magellan topography 4.6 km | Magellan colourised |
+| Ceres | Dawn DTM 60 ppd | Dawn FC 20 ppd |
+| Vesta | Dawn DTM 48 ppd | Dawn FC 74 ppd |
+| Pluto | New Horizons DEM 300 m | New Horizons 8-bit |
 
-`output/moon/lunar_truecolor.png` drapes a real albedo map over the hillshade.
-Rendered at 8192 × 4096. The DEM stores elevation only, so
-`scripts/moon/render_truecolor.py` pulls NASA SVS's public-domain [CGI Moon
-Kit](https://svs.gsfc.nasa.gov/4720) LROC WAC colour map (8k equirectangular),
-rolls it 180° to line up with the 0…360°E DEM (alignment verified by
-correlating albedo brightness against elevation), and multiplies it by the same
-hillshade. Raise `SATURATION` above 1.0 to exaggerate the mineral tints.
+Planetary rasters come from [USGS Astrogeology](https://astrogeology.usgs.gov/)
+(`https://planetarymaps.usgs.gov/mosaic/`); the Moon's colour map from the NASA
+SVS [CGI Moon Kit](https://svs.gsfc.nasa.gov/4720); Earth from NOAA/NASA.
 
-Mars is produced the same way: `output/mars/mars_relief.png` (hypsometric) and
-`output/mars/mars_truecolor.png` (Viking colour × MOLA hillshade). The two
-inputs come from USGS Astrogeology — download them into `data/mars/` first:
+The Moon's DEM is a headerless `.IMG` with a PDS3 `.LBL`; GDAL's PDS driver
+reads it via the label (byte order, `scale=0.5`, `nodata`, geotransform).
+`common.read_dem` auto-detects projected (metres) vs geographic (degrees,
+e.g. ETOPO) grids and applies the body's `scale`/`nodata`/`radius`.
 
-```
-Mars_MGS_MOLA_DEM_mosaic_global_463m.tif   (2.1 GB)  elevation
-Mars_Viking_ClrMosaic_global_925m.tif      (798 MB)  colour
-```
-from `https://planetarymaps.usgs.gov/mosaic/`.
+## The coloured relief / true-colour maps
+
+`output/<body>/<body>_relief.png` is a hypsometric tint (cool lows → warm mids
+→ white highs) multiplied by a latitude-aware hillshade; `<body>_truecolor.png`
+multiplies the real surface mosaic by the same hillshade. Tune `zfactor`,
+`relief` and the palette in `config.py` / `common.py`.
 
 ## The interactive globe
 
-Open `web/index.html` — a tabbed page with **Moon** (grey theme), **Earth**
-(blue theme) and **Mars** (rust theme) globes, each with its own surface /
-contours / labels / auto-spin toggles (surface is off by default). The
-per-planet pages `web/moon/index.html` and `web/earth/index.html` still work
-standalone.
+Open `web/index.html`. A tab per body; the body's data `<script>`s are loaded
+**lazily** on first open, so the initial page only pulls in the Moon. Each globe
+has a right-hand sidebar with:
 
-Mars uses the MOLA DEM (`data/mars/Mars_MGS_MOLA_DEM_mosaic_global_463m.tif`)
-for contours and hillshade and the Viking colour mosaic
-(`Mars_Viking_ClrMosaic_global_925m.tif`) for the draped surface; its feature
-names come from the USGS/IAU Mars gazetteer (`scripts/mars/extract_catalog.py`).
+* **surface** — `off` (planet-tinted dark sphere), `photo`, or `elevation`
+* **3D** — displaces the sphere with the DEM into real terrain geometry, with a
+  **relief** slider for vertical exaggeration (structure-only "clay" when
+  surface is off)
+* **contours**, **labels**, **auto-spin**
 
-Everything loads straight off disk (plain `<script>` globals, `d3.min.js`
-bundled locally).
+The sphere is a WebGL orthographic projection sharing d3's rotation, sampling
+an equirectangular texture (embedded as a base64 data URL so it stays
+origin-clean under `file://`); the contour/label canvas is composited on top.
 
-* drag to rotate, scroll to zoom
-* a **surface** selector per globe switches the sphere between **off** (plain
-  gradient — the default), **photo** (true-colour mosaic) and **elevation**
-  (hypsometric colour map)
-* a **3D** toggle displaces the sphere by the DEM into real terrain geometry
-  (shaded), independent of the surface colour; when surface is `off` it renders
-  as a plain clay relief
-* plus **contours**, **labels** and **auto-spin** toggles (contours + labels on
-  by default)
-* the sphere is a WebGL orthographic projection sampling an equirectangular
-  texture, with the contour/label canvas composited on top
-* each planet ships two textures as base64 data URLs
-  (`<planet>_texture.js` photo, `<planet>_elev.js` elevation) so they stay
-  origin-clean when opened from `file://`
-* one simplified contour mesh (~660k points) keeps it light and smooth
+## Adding a body
 
-## Exporting high-resolution PNGs
+1. Drop the DEM + surface GeoTIFFs into `data/<body>/`.
+2. Add a `data/<body>/` entry to `scripts/planets/config.py` (rasters, `scale`,
+   `nodata`, `radius` if geographic, `interval`, theme colours).
+3. `make <body>`.
 
-The flat map is a vector SVG, so render at any size with Inkscape:
+## Performance
 
-```sh
-inkscape --export-type=png --export-width=25600 \
-         --export-filename=output/moon/lunar_globe_v3_labeled_25600.png \
-         output/moon/lunar_globe_v3_labeled.svg
-```
+The per-body work is parallelised and cached:
+
+* Decimated DEM fields are cached under `.cache/` (`common.read_dem`), so
+  `relief`, `truecolor`, `contours`, `height` and `flat` share one read of the
+  (often multi-GB) raster instead of re-decoding it each time.
+* Contour extraction (marching squares + smoothing + Douglas-Peucker) runs
+  across `cpu_count()-1` processes, distributing the contour levels.
+* PNG output uses zlib level 1 (the encode step dominated the old runtime).
+
+Typical Moon timings went from ~22 s (contours) / ~11 s (relief) to ~7 s / ~4 s.
+`make clean` clears `.cache/` too.
 
 ## Pipeline notes
 
-* **Contours are closed loops.** The DEM is wrap-padded in longitude before
-  contouring so lines crossing the 0°/360° seam close; anything left open only
-  terminates at a pole.
-* **Smooth vectors.** Marching-squares paths are smoothed and emitted as
-  Catmull-Rom → cubic Bézier curves, so they stay clean at any zoom.
-* **Labels.** Seas use their English phrase when the catalog has one
-  ("Sea of Tranquillity"), else the Latin name (e.g. Mare Humboldtianum).
-  A greedy rectangle test removes colliding labels.
+* Contours are wrap-padded in longitude so lines crossing the ±180°/0° seam
+  close; edge cases only terminate at a pole.
+* Marching-squares paths are smoothed and, for the flat SVG, emitted as
+  Catmull-Rom → cubic-Bézier curves.
+* Labels come from the USGS/IAU gazetteer per body (Earth uses Natural Earth
+  populated places); a greedy rectangle test drops colliding labels.
