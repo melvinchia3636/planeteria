@@ -9,4 +9,5 @@ dependencies = [
     "scikit-image",
     "pyshp",
     "rasterio",
+    "pillow",
 ]

@@ -105,11 +105,16 @@ The per-body work is parallelised and cached:
 * Decimated DEM fields are cached under `.cache/` (`common.read_dem`), so
   `relief`, `truecolor`, `contours`, `height` and `flat` share one read of the
   (often multi-GB) raster instead of re-decoding it each time.
+* Surface textures are embedded as **WebP** (quality 80/90) rather than PNG —
+  photographic equirectangular maps compress far better this way.
+* Contours are **delta + varint** encoded at 0.01° precision and embedded as
+  base64, then decoded back to GeoJSON in the browser.
 * Contour extraction (marching squares + smoothing + Douglas-Peucker) runs
   across `cpu_count()-1` processes, distributing the contour levels.
 * PNG output uses zlib level 1 (the encode step dominated the old runtime).
 
 Typical Moon timings went from ~22 s (contours) / ~11 s (relief) to ~7 s / ~4 s.
+The globe payload for all eight bodies dropped from ~172 MB to ~31 MB.
 `make clean` clears `.cache/` too.
 
 ## Pipeline notes

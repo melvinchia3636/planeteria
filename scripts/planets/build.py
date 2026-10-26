@@ -30,6 +30,7 @@ import common
 import numpy as np
 import rasterio
 from config import NOTABLE_TYPES, PLANETS, SEA_TYPES
+from PIL import Image
 from rasterio.enums import Resampling
 from scipy.ndimage import gaussian_filter1d
 from skimage.measure import approximate_polygon, find_contours
@@ -42,6 +43,7 @@ MIN_PERIMETER = 5.0
 PAD = 40
 TOLERANCE = 0.08
 DECIMALS = 3
+CONTOUR_SCALE = 100   # 0.01° quantization (~0.3 km on the Moon)
 S = 10.0  # SVG units per degree (flat maps)
 
 PLACES_URL = (
@@ -185,44 +187,41 @@ def task_truecolor(body):
     print("saved", path)
 
 
-def _encode_png(src, width, name, out):
+def _encode_texture(src, width, name, out, quality):
+    """Resample a surface raster and embed it as a WebP data URL.
+
+    WebP is several times smaller than PNG here (the textures are photographic),
+    which keeps the lazily-loaded globe data manageable.
+    """
     with rasterio.open(src) as ds:
         rgb = ds.read(out_shape=(3, width // 2, width), resampling=Resampling.average)
-    fd, tmp = tempfile.mkstemp(suffix=".png")
-    os.close(fd)
-    try:
-        with rasterio.open(
-            tmp,
-            "w",
-            driver="PNG", ZLEVEL="1",
-            width=width,
-            height=width // 2,
-            count=3,
-            dtype="uint8",
-        ) as dst:
-            dst.write(rgb)
-        with open(tmp, "rb") as f:
-            b64 = base64.b64encode(f.read()).decode("ascii")
-    finally:
-        os.remove(tmp)
+    img = Image.fromarray(np.moveaxis(rgb, 0, -1).astype("uint8"), "RGB")
+    buf = io.BytesIO()
+    img.save(buf, "WEBP", quality=quality, method=6)
+    b64 = base64.b64encode(buf.getvalue()).decode("ascii")
     with open(out, "w") as f:
-        f.write('window.%s="data:image/png;base64,%s";' % (name, b64))
-    print("saved %s  %dx%d  %.1f MB" % (out, width, width // 2, len(b64) / 1e6))
+        f.write('window.%s="data:image/webp;base64,%s";' % (name, b64))
+    print(
+        "saved %s  %dx%d  %.1f MB"
+        % (out, width, width // 2, len(b64) / 1e6)
+    )
 
 
 def task_texture(body):
     u = body.upper()
-    _encode_png(
+    _encode_texture(
         "output/%s/%s_truecolor.png" % (body, body),
         4096,
         u + "_TEXTURE",
         "web/%s/%s_texture.js" % (body, body),
+        quality=80,
     )
-    _encode_png(
+    _encode_texture(
         "output/%s/%s_relief.png" % (body, body),
         2048,
         u + "_ELEV",
         "web/%s/%s_elev.js" % (body, body),
+        quality=90,
     )
 
 
@@ -246,15 +245,45 @@ def task_height(body):
 
 
 # ------------------------------------------------------------- contours ------
+def _varint(out, n):
+    """Append a zig-zag encoded LEB128 integer."""
+    n = (n << 1) ^ (n >> 31)
+    while True:
+        b = n & 0x7F
+        n >>= 7
+        if n:
+            out.append(b | 0x80)
+        else:
+            out.append(b)
+            return
+
+
+def _pack_contours(coords):
+    """Delta + varint encode contour rings: far smaller than GeoJSON text."""
+    out = bytearray()
+    for line in coords:
+        _varint(out, len(line))
+        px = py = 0
+        for x, y in line:
+            qx = int(round(x * CONTOUR_SCALE))
+            qy = int(round(y * CONTOUR_SCALE))
+            _varint(out, qx - px)
+            _varint(out, qy - py)
+            px, py = qx, qy
+    return bytes(out)
+
+
 def task_contours(body):
     cfg = PLANETS[body]
     field, _, _ = common.read_dem(body, CONTOUR_WIDTH)
     levels = _levels(field, cfg["interval"])
     coords = _extract_rings(body, field, CONTOUR_WIDTH, levels, "contour")
+    b64 = base64.b64encode(_pack_contours(coords)).decode("ascii")
     data = "window.%s_CONTOURS=%s;" % (
         body.upper(),
         json.dumps(
-            {"type": "MultiLineString", "coordinates": coords}, separators=(",", ":")
+            {"enc": "varint", "scale": CONTOUR_SCALE, "n": len(coords), "b64": b64},
+            separators=(",", ":"),
         ),
     )
     path = "web/%s/%s_contours.js" % (body, body)
