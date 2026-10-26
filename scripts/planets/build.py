@@ -273,16 +273,39 @@ def _pack_contours(coords):
     return bytes(out)
 
 
+def _simplify_rings(coords, tolerance):
+    """Douglas-Peucker simplify every ring; drop degenerate results."""
+    out = []
+    for line in coords:
+        a = approximate_polygon(np.asarray(line), tolerance=tolerance)
+        if len(a) >= 3:
+            out.append(a.tolist())
+    return out
+
+
 def task_contours(body):
     cfg = PLANETS[body]
     field, _, _ = common.read_dem(body, CONTOUR_WIDTH)
     levels = _levels(field, cfg["interval"])
     coords = _extract_rings(body, field, CONTOUR_WIDTH, levels, "contour")
-    b64 = base64.b64encode(_pack_contours(coords)).decode("ascii")
+    # Coarse -> fine. The viewer selects a level from the zoom factor.
+    detail = [
+        (0.6, _simplify_rings(coords, 0.6)),
+        (0.32, _simplify_rings(coords, 0.32)),
+        (TOLERANCE, coords),
+    ]
+    lod = [
+        {
+            "tol": tol,
+            "n": len(level),
+            "b64": base64.b64encode(_pack_contours(level)).decode("ascii"),
+        }
+        for tol, level in detail
+    ]
     data = "window.%s_CONTOURS=%s;" % (
         body.upper(),
         json.dumps(
-            {"enc": "varint", "scale": CONTOUR_SCALE, "n": len(coords), "b64": b64},
+            {"enc": "varint", "scale": CONTOUR_SCALE, "lod": lod},
             separators=(",", ":"),
         ),
     )
@@ -290,8 +313,14 @@ def task_contours(body):
     with open(path, "w") as f:
         f.write(data)
     print(
-        "saved %s  %d levels  %d lines  %.1f MB"
-        % (path, len(levels), len(coords), len(data) / 1e6)
+        "saved %s  %d levels  %d lines  %.1f MB  lod=%s"
+        % (
+            path,
+            len(levels),
+            len(coords),
+            len(data) / 1e6,
+            "/".join("%d" % len(level) for _, level in detail),
+        )
     )
 
 

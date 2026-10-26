@@ -167,11 +167,14 @@ The per-body work is parallelised and cached:
 - Surface textures are embedded as **WebP** (quality 80/90) rather than PNG.
 - Contours are **delta + varint** encoded at 0.01° precision and decoded back to
   GeoJSON in the browser.
+- Contours ship as **coarse → fine** simplifications; the viewer picks a level
+  from the zoom factor and skips the far hemisphere, so phones only pay for the
+  detail they can actually see.
 - Contour extraction runs across `cpu_count()-1` processes, one level at a time.
 - PNG output uses zlib level 1.
 
-The Moon's contours build in about 7 s and its relief map in about 4 s. All
-eight interactive globes together weigh ~31 MB (~21 MB gzipped).
+The Moon's contours build in about 14 s and its relief map in about 4 s. All
+eight interactive globes together weigh ~35 MB (~24 MB gzipped).
 
 ## 📈 Status
 
