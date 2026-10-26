@@ -183,6 +183,9 @@ NASA SVS [CGI Moon Kit](https://svs.gsfc.nasa.gov/4720), NOAA/NCEI ETOPO, the
 IAU Gazetteer of Planetary Nomenclature, Natural Earth, and the d3
 geo-orthographic projection.
 
+The project was also inspired by Sebastian Lague's
+[I Made a Pen Plotter to Draw Maps of the Moon](https://www.youtube.com/watch?v=qyNWDzO6kKQ).
+
 ## 📄 License
 
 Copyright © 2026 Melvin Chia<br/>
