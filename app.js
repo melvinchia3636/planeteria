@@ -190,6 +190,8 @@
     const path = d3.geoPath(projection, ctx);
     const graticule = d3.geoGraticule10();
     const sphere = { type: "Sphere" };
+    const coarsePointer =
+      window.matchMedia && window.matchMedia("(pointer: coarse)").matches;
 
     const glapi = makeGL(glCanvas);
     const textures = { photo: null, elev: null };
@@ -453,6 +455,58 @@
       return true;
     }
 
+    /* Contours are the heaviest layer (hundreds of thousands of points). The
+       build ships coarse -> fine simplifications; pick one from the zoom level,
+       and skip the far hemisphere so a phone only pays for visible detail. */
+    function contourLevel() {
+      const total = (cfg.contours && cfg.contours.count) || 1;
+      if (total <= 1) return 0;
+      const base = Math.min(W, H) / 2 - 24;
+      const zoom = base > 0 ? projection.scale() / base : 1;
+      const lite = coarsePointer || window.innerWidth <= 900;
+      if (lite) {
+        if (zoom <= 1.8) return 0;
+        if (zoom <= 3.2) return 1;
+        return total - 1;
+      }
+      if (zoom <= 1.25) return Math.min(1, total - 1);
+      return total - 1;
+    }
+
+    function drawContours(textured) {
+      const geo = cfg.contours && cfg.contours.pick(contourLevel());
+      const coords = geo && geo.coordinates;
+      if (!coords) return;
+      const r = projection.rotate();
+      const center = [-r[0], -r[1]];
+      const lim = Math.PI / 2 - 0.02;
+      ctx.beginPath();
+      for (let li = 0; li < coords.length; li++) {
+        const line = coords[li];
+        let pen = false;
+        for (let i = 0; i < line.length; i++) {
+          const pt = line[i];
+          if (d3.geoDistance(pt, center) > lim) {
+            pen = false;
+            continue;
+          }
+          const q = projection(pt);
+          if (!q) {
+            pen = false;
+            continue;
+          }
+          if (pen) ctx.lineTo(q[0], q[1]);
+          else {
+            ctx.moveTo(q[0], q[1]);
+            pen = true;
+          }
+        }
+      }
+      ctx.lineWidth = textured ? cfg.contourW : 0.5;
+      ctx.strokeStyle = textured ? cfg.contourOn : cfg.contourOff;
+      ctx.stroke();
+    }
+
     function render() {
       if (!W || !H) return;
       const textured = terrainOn ? drawRelief() || drawGL() : drawGL();
@@ -474,13 +528,7 @@
       ctx.strokeStyle = cfg.graticule;
       ctx.stroke();
 
-      if (showContours) {
-        ctx.beginPath();
-        path(cfg.contours);
-        ctx.lineWidth = textured ? cfg.contourW : 0.5;
-        ctx.strokeStyle = textured ? cfg.contourOn : cfg.contourOff;
-        ctx.stroke();
-      }
+      if (showContours) drawContours(textured);
       ctx.beginPath();
       path(sphere);
       ctx.lineWidth = 1.2;
@@ -1024,38 +1072,58 @@
   }
 
   function decodeContours(d) {
-    if (!d || d.type === "MultiLineString") return d;
-    const bin = atob(d.b64),
-      n = bin.length,
-      bytes = new Uint8Array(n);
-    for (let i = 0; i < n; i++) bytes[i] = bin.charCodeAt(i);
-    let p = 0;
-    function zig() {
-      let u = 0,
-        s = 0,
-        b;
-      do {
-        b = bytes[p++];
-        u |= (b & 0x7f) << s;
-        s += 7;
-      } while (b & 0x80);
-      return (u >>> 1) ^ -(u & 1);
+    if (!d) return { count: 0, pick: function () { return null; } };
+    if (d.type === "MultiLineString") {
+      return { count: 1, pick: function () { return d; } };
     }
-    const scale = d.scale || 100,
-      lines = [];
-    for (let i = 0; i < d.n; i++) {
-      const m = zig(),
-        line = new Array(m);
-      let x = 0,
-        y = 0;
-      for (let j = 0; j < m; j++) {
-        x += zig();
-        y += zig();
-        line[j] = [x / scale, y / scale];
+    const scale = d.scale || 100;
+    const raw = d.lod || [{ n: d.n, b64: d.b64 }];
+    const levels = raw.map(function (l) {
+      return { n: l.n, b64: l.b64, geo: null };
+    });
+
+    function unpack(level) {
+      const bin = atob(level.b64),
+        n = bin.length,
+        bytes = new Uint8Array(n);
+      for (let i = 0; i < n; i++) bytes[i] = bin.charCodeAt(i);
+      let p = 0;
+      function zig() {
+        let u = 0,
+          s = 0,
+          b;
+        do {
+          b = bytes[p++];
+          u |= (b & 0x7f) << s;
+          s += 7;
+        } while (b & 0x80);
+        return (u >>> 1) ^ -(u & 1);
       }
-      lines.push(line);
+      const lines = [];
+      for (let i = 0; i < level.n; i++) {
+        const m = zig(),
+          line = new Array(m);
+        let x = 0,
+          y = 0;
+        for (let j = 0; j < m; j++) {
+          x += zig();
+          y += zig();
+          line[j] = [x / scale, y / scale];
+        }
+        lines.push(line);
+      }
+      return { type: "MultiLineString", coordinates: lines };
     }
-    return { type: "MultiLineString", coordinates: lines };
+
+    return {
+      count: levels.length,
+      pick: function (i) {
+        const idx = Math.max(0, Math.min(levels.length - 1, i | 0));
+        const level = levels[idx];
+        if (!level.geo) level.geo = unpack(level);
+        return level.geo;
+      },
+    };
   }
 
   function makeGlobe(p, root) {
