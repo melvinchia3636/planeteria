@@ -71,7 +71,7 @@
                     letter-spacing: .02em; color: var(--dim); }
   canvas { display: block; }
   .gl { position: absolute; inset: 0; z-index: 0; }
-  .ov { position: absolute; inset: 0; z-index: 1; cursor: grab; }
+  .ov { position: absolute; inset: 0; z-index: 1; cursor: grab; touch-action: none; }
   .ov:active { cursor: grabbing; }
   .controls { position: static; display: flex; flex-direction: column; gap: 12px;
               color: var(--dim, #8f9bb3);
@@ -99,6 +99,53 @@
   @keyframes spin { to { transform: rotate(360deg); } }
   @media (prefers-reduced-motion: reduce) {
     .loader .ring { animation-duration: 2.4s; }
+  }
+
+  /* ---- responsive: narrower sidebars, then stacked controls ---- */
+  @media (max-width: 900px) {
+    #sidebar { flex-basis: 190px; padding: 12px 14px; }
+    #tabs button { padding: 12px 18px; }
+    .panel h1 { font-size: 13px; }
+  }
+
+  @media (max-width: 700px) {
+    #main { flex-direction: column; }
+    #sidebar {
+      flex: 0 0 auto;
+      width: 100%;
+      max-height: 32vh;
+      padding: 10px 14px 12px;
+      border-left: none;
+      border-top: 1px solid rgba(255,255,255,0.07);
+    }
+    #sidebar h2 { margin: 0 0 10px; font-size: 10px; letter-spacing: .16em; }
+    .controls {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+      gap: 8px 16px;
+      font-size: 11px;
+    }
+    .controls label { gap: 6px; }
+    .controls select { font-size: 11px; }
+    .controls input[type=range] { width: 84px; }
+    #tabs { overflow-x: auto; scrollbar-width: none; }
+    #tabs::-webkit-scrollbar { display: none; }
+    #tabs button {
+      flex: 0 0 auto;
+      padding: 11px 14px;
+      font-size: 11px;
+      letter-spacing: .08em;
+    }
+    .panel h1 { top: 10px; left: 12px; font-size: 12px; }
+    .panel h1 small { font-size: 9px; }
+    .hint { display: none; }
+  }
+
+  @media (max-width: 420px) {
+    #sidebar { max-height: 28vh; }
+    .controls { gap: 6px 12px; }
+    .controls label { justify-content: flex-start; }
+    .panel h1 small { display: none; }
   }
 </style>
 </head>
