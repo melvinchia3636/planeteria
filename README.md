@@ -173,8 +173,8 @@ globe payload for all eight bodies dropped from ~172 MB to ~31 MB.
 
 ## 📈 Status
 
-Actively maintained. If you find a bug or want another body added, please file
-an issue — contributions are welcome.
+This project is completed. If any bugs are found, please file an issue and feel
+free to contribute!
 
 ## 💡 Inspirations
 
