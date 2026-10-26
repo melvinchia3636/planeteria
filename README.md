@@ -96,6 +96,8 @@ scripts/planets/    the whole pipeline
 output/<body>/      generated PNG maps (+ optional flat SVG)
 web/<body>/         generated globe data (JS globals, loaded lazily)
 web/index.html      the tabbed globe viewer
+web/app.js          viewer logic (WebGL globe, contours, labels, controls)
+web/style.css       viewer styles, including the responsive layout
 web/d3.min.js       bundled d3 build
 docs/               README screenshots
 ```
