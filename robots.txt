@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://melvinchia3636.github.io/planeteria/sitemap.xml
