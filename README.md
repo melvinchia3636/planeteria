@@ -46,28 +46,13 @@ ELEV,HEIGHT}`.
 
 ## Data sources
 
-See [`DATA_SOURCES.md`](DATA_SOURCES.md) for the full per-body product names,
-providers and label sources.
-
-| body | elevation | surface |
-|---|---|---|
-| Moon | `LDEM_128.IMG`/`.LBL` (LOLA, PDS3) | LROC WAC colour (NASA SVS) |
-| Earth | ETOPO 2022 30″ | Blue Marble |
-| Mars | MOLA 463 m | Viking colour mosaic |
-| Mercury | MESSENGER DEM 665 m | MESSENGER colour 665 m |
-| Venus | Magellan topography 4.6 km | Magellan colourised |
-| Ceres | Dawn DTM 60 ppd | Dawn FC 20 ppd |
-| Vesta | Dawn DTM 48 ppd | Dawn FC 74 ppd |
-| Pluto | New Horizons DEM 300 m | New Horizons 8-bit |
-
-Planetary rasters come from [USGS Astrogeology](https://astrogeology.usgs.gov/)
-(`https://planetarymaps.usgs.gov/mosaic/`); the Moon's colour map from the NASA
-SVS [CGI Moon Kit](https://svs.gsfc.nasa.gov/4720); Earth from NOAA/NASA.
+All elevation models, surface imagery and label products — with filenames,
+providers and processing settings — are documented in
+[`DATA_SOURCES.md`](DATA_SOURCES.md).
 
 The Moon's DEM is a headerless `.IMG` with a PDS3 `.LBL`; GDAL's PDS driver
-reads it via the label (byte order, `scale=0.5`, `nodata`, geotransform).
-`common.read_dem` auto-detects projected (metres) vs geographic (degrees,
-e.g. ETOPO) grids and applies the body's `scale`/`nodata`/`radius`.
+reads it via the label, and `common.read_dem` auto-detects projected (metres)
+vs geographic (degrees, e.g. ETOPO) grids.
 
 ## The coloured relief / true-colour maps
 
