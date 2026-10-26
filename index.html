@@ -689,6 +689,29 @@
     })();
   }
 
+  function decodeContours(d) {
+    if (!d || d.type === "MultiLineString") return d;
+    const bin = atob(d.b64), n = bin.length, bytes = new Uint8Array(n);
+    for (let i = 0; i < n; i++) bytes[i] = bin.charCodeAt(i);
+    let p = 0;
+    function zig() {
+      let u = 0, s = 0, b;
+      do { b = bytes[p++]; u |= (b & 0x7f) << s; s += 7; } while (b & 0x80);
+      return (u >>> 1) ^ -(u & 1);
+    }
+    const scale = d.scale || 100, lines = [];
+    for (let i = 0; i < d.n; i++) {
+      const m = zig(), line = new Array(m);
+      let x = 0, y = 0;
+      for (let j = 0; j < m; j++) {
+        x += zig(); y += zig();
+        line[j] = [x / scale, y / scale];
+      }
+      lines.push(line);
+    }
+    return { type: "MultiLineString", coordinates: lines };
+  }
+
   function makeGlobe(p, root) {
     const g = p.g;
     return createGlobe({
@@ -697,7 +720,7 @@
       clay: p.clay, gradient: p.gradient, graticule: p.graticule, sphere: p.sphere,
       contourOn: p.contourOn, contourOff: p.contourOff, contourW: 0.7,
       texture: window[g.texture], elevTexture: window[g.elev],
-      height: window[g.height], contours: window[g.contours],
+      height: window[g.height], contours: decodeContours(window[g.contours]),
       labels: window[g.labels], labelStyle: labelStyleFor(p.labelKind)
     });
   }
