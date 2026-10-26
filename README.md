@@ -4,7 +4,8 @@ Elevation globes and maps for eight worlds — **Moon, Earth, Mars, Mercury,
 Venus, Ceres, Vesta, Pluto** — built from real DEMs with numpy/scipy/
 scikit-image, a WebGL viewer, and no GIS tooling.
 
-**→ open [`web/index.html`](web/index.html)** for the tabbed interactive globes.
+**→ open [`web/index.html`](web/index.html)** for the tabbed interactive globes,
+or visit the live site at **https://melvinchia3636.github.io/planeteria/**.
 
 ## Layout
 
@@ -43,6 +44,19 @@ Tasks: `relief`, `truecolor`, `contours`, `texture`, `height`, `catalog`,
 `labels`, `flat`, `flatlabels`. Each writes to `output/<body>/` and
 `web/<body>/` and defines the globals `window.<BODY>_{CONTOURS,LABELS,TEXTURE,
 ELEV,HEIGHT}`.
+
+## Publishing
+
+The generated globe data under `web/` is gitignored, so the site is published
+from a separate `gh-pages` branch rather than `main`:
+
+```sh
+make pages   # rebuild gh-pages from web/ and push
+```
+
+GitHub Pages serves that branch at
+<https://melvinchia3636.github.io/planeteria/>. Rerun `make pages` after
+rebuilding any body's web assets.
 
 ## Data sources
 

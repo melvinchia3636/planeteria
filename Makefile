@@ -2,7 +2,7 @@ UV := uv run
 PLANETS := scripts/planets
 BODIES := moon earth mars mercury venus ceres vesta pluto
 
-.PHONY: all $(BODIES) flat-all png-all labeled clean
+.PHONY: all $(BODIES) flat-all png-all labeled pages clean
 
 all: $(BODIES)
 
@@ -29,6 +29,10 @@ png-%:
 labeled:
 	mkdir -p output/labeled
 	@for b in $(BODIES); do ln -f output/$$b/$${b}_globe_labeled.png output/labeled/; done
+
+## Publish web/ to the gh-pages branch (GitHub Pages)
+pages:
+	./scripts/publish_pages.sh
 
 clean:
 	rm -f output/*/*.svg output/*/*.png
