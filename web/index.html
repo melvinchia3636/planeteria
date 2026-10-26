@@ -85,6 +85,21 @@
   .hint { position: absolute; left: 18px; bottom: 12px; z-index: 2;
           color: var(--dim); font: 12px/1.5 'JetBrains Mono', ui-monospace, Menlo, monospace;
           pointer-events: none; }
+  .loader { position: absolute; inset: 0; z-index: 1; display: none;
+            flex-direction: column; align-items: center; justify-content: center;
+            gap: 18px; background: #04060c; }
+  .panel.loading .loader { display: flex; }
+  .panel.loading .hint { display: none; }
+  .loader .ring { width: 40px; height: 40px; border-radius: 50%;
+                  border: 2px solid rgba(255,255,255,0.10);
+                  border-top-color: var(--accent, #c9d3e0);
+                  animation: spin 0.9s linear infinite; }
+  .loader .lbl { font: 600 11px 'JetBrains Mono', ui-monospace, Menlo, monospace;
+                 letter-spacing: .22em; color: var(--dim); }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  @media (prefers-reduced-motion: reduce) {
+    .loader .ring { animation-duration: 2.4s; }
+  }
 </style>
 </head>
 <body>
@@ -700,7 +715,9 @@
     sec.innerHTML =
       '<h1>' + p.display + ' <small>' + p.subtitle + '</small></h1>' +
       '<canvas class="gl"></canvas><canvas class="ov"></canvas>' +
-      '<div class="hint">drag to rotate \u00b7 scroll to zoom</div>';
+      '<div class="hint">drag to rotate \u00b7 scroll to zoom</div>' +
+      '<div class="loader"><div class="ring"></div>' +
+      '<div class="lbl">LOADING ' + p.display + '</div></div>';
     return sec;
   }
 
@@ -777,14 +794,21 @@
       el.classList.toggle("active", el.id === id);
     });
     showSidebar(p);
-    if (globes[id]) { globes[id].resize(); return; }
+    const panelEl = document.getElementById(id);
+    if (globes[id]) {
+      panelEl.classList.remove("loading");
+      globes[id].resize();
+      return;
+    }
     if (loading[id]) return;
     loading[id] = true;
+    panelEl.classList.add("loading");
     sidebarTitle.textContent = p.display + " \u00b7 loading\u2026";
     loadScripts(p.files, function () {
       globes[id] = makeGlobe(p, document.getElementById(id));
       showSidebar(p);
       globes[id].resize();
+      panelEl.classList.remove("loading");
     });
   }
 
