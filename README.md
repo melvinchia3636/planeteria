@@ -168,8 +168,8 @@ The per-body work is parallelised and cached:
 - Contour extraction runs across `cpu_count()-1` processes, one level at a time.
 - PNG output uses zlib level 1.
 
-The Moon went from ~22 s to ~7 s for contours and ~11 s to ~4 s for relief; the
-globe payload for all eight bodies dropped from ~172 MB to ~31 MB.
+The Moon's contours build in about 7 s and its relief map in about 4 s. All
+eight interactive globes together weigh ~31 MB (~21 MB gzipped).
 
 ## 📈 Status
 
