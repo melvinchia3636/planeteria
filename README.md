@@ -46,6 +46,9 @@ ELEV,HEIGHT}`.
 
 ## Data sources
 
+See [`DATA_SOURCES.md`](DATA_SOURCES.md) for the full per-body product names,
+providers and label sources.
+
 | body | elevation | surface |
 |---|---|---|
 | Moon | `LDEM_128.IMG`/`.LBL` (LOLA, PDS3) | LROC WAC colour (NASA SVS) |
