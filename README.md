@@ -176,14 +176,16 @@ globe payload for all eight bodies dropped from ~172 MB to ~31 MB.
 This project is completed. If any bugs are found, please file an issue and feel
 free to contribute!
 
-## 💡 Inspirations
+## 🙏 Acknowledgements
 
 Built on the work of [USGS Astrogeology](https://astrogeology.usgs.gov/), the
 NASA SVS [CGI Moon Kit](https://svs.gsfc.nasa.gov/4720), NOAA/NCEI ETOPO, the
 IAU Gazetteer of Planetary Nomenclature, Natural Earth, and the d3
 geo-orthographic projection.
 
-The project was also inspired by Sebastian Lague's
+## 💡 Inspirations
+
+The project was inspired by Sebastian Lague's
 [I Made a Pen Plotter to Draw Maps of the Moon](https://www.youtube.com/watch?v=qyNWDzO6kKQ).
 
 ## 📄 License
