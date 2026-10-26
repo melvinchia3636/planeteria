@@ -568,24 +568,68 @@
       }
     });
 
-    const drag = d3
-      .drag()
-      .on("start", function () {
-        if (timer) {
-          timer.stop();
-          timer = null;
-        }
-      })
-      .on("drag", function (e) {
+    /* ---- pointer interaction: drag to rotate, pinch (or wheel) to zoom ---- */
+    const pointers = new Map();
+    let pinchDist = 0;
+
+    function spread() {
+      const p = Array.from(pointers.values());
+      if (p.length < 2) return 0;
+      return Math.hypot(p[0].x - p[1].x, p[0].y - p[1].y);
+    }
+
+    function stopSpin() {
+      if (timer) {
+        timer.stop();
+        timer = null;
+      }
+    }
+
+    canvas.addEventListener("pointerdown", function (e) {
+      stopSpin();
+      e.preventDefault();
+      if (canvas.setPointerCapture) canvas.setPointerCapture(e.pointerId);
+      pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+      if (pointers.size === 2) pinchDist = spread();
+    });
+
+    canvas.addEventListener("pointermove", function (e) {
+      const prev = pointers.get(e.pointerId);
+      if (!prev) return;
+      pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+      if (pointers.size === 1) {
         const k = 0.25,
           r = projection.rotate();
-        projection.rotate([r[0] + e.dx * k, r[1] - e.dy * k, 0]);
+        projection.rotate([
+          r[0] + (e.clientX - prev.x) * k,
+          r[1] - (e.clientY - prev.y) * k,
+          0,
+        ]);
         request();
-      })
-      .on("end", function () {
-        if (spinBox.checked) timer = d3.timer(tick);
-      });
-    d3.select(canvas).call(drag);
+      } else if (pointers.size >= 2) {
+        const d = spread();
+        if (pinchDist > 0 && d > 0) {
+          const s = Math.max(
+            80,
+            Math.min(
+              projection.scale() * (d / pinchDist),
+              Math.min(W, H) * 4,
+            ),
+          );
+          projection.scale(s);
+          request();
+        }
+        pinchDist = d;
+      }
+    });
+
+    function pointerEnd(e) {
+      pointers.delete(e.pointerId);
+      pinchDist = pointers.size >= 2 ? spread() : 0;
+      if (pointers.size === 0 && spinBox.checked) timer = d3.timer(tick);
+    }
+    canvas.addEventListener("pointerup", pointerEnd);
+    canvas.addEventListener("pointercancel", pointerEnd);
 
     canvas.addEventListener(
       "wheel",
