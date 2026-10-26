@@ -2,6 +2,7 @@
 __pycache__/
 *.pyc
 .cache/
+.DS_Store
 
 # Large / downloaded inputs and generated artefacts
 data/**/*.IMG
